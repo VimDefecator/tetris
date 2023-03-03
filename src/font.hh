@@ -85,7 +85,13 @@ public:
   Font() = default;
   ~Font();
   
+  Font(Font &&other);
+  Font(const Font &other);
+  Font &operator=(Font &&other);
+  Font &operator=(const Font &other);
+  
   void init(int w, int h);
+  void drop();
 
   void load(std::istream &in);
 
@@ -96,8 +102,8 @@ public:
     return BitsView2D(&bytes_[ch * bytesPerOne_], w_, h_);
   }
   
-  int width() const { return w_; }
-  int height() const { return h_; }
+  int wid() const { return w_; }
+  int hei() const { return h_; }
   
   void erase(int ch);
     

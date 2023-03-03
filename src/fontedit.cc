@@ -1,4 +1,5 @@
 #include "font.hh"
+#include "fontutils.hh"
 #include "args.hh"
 #include "sdlctx.hh"
 #include <iostream>
@@ -31,18 +32,13 @@ void Edit::init(const Args &args)
   isNew_ = !fs::exists(filename_);
 
   if(isNew_)
-  {
     font_.init(args.getInt("width"), args.getInt("height"));
-  }
   else
-  {
-    auto in = std::ifstream(filename_);
-    font_.load(in);
-  }
+    readFontFromFile(font_, filename_);
   
-  w_ = font_.width();
-  h_ = font_.height();
-  s_ = args.getIntO("scale").value_or(1) * 16;
+  w_ = font_.wid();
+  h_ = font_.hei();
+  s_ = args.getIntO("scale").value_or(1) * 4;
 }
 
 void Edit::exec()
@@ -146,8 +142,7 @@ void Edit::exec()
 
 void Edit::save()
 {
-  auto out = std::ofstream(filename_, std::ios::trunc);
-  font_.store(out);
+  writeFontToFile(font_, filename_);
 }
 
 int main(int argc, char **argv)

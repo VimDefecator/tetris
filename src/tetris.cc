@@ -11,6 +11,7 @@
 
 #include "sdlctx.hh"
 #include "font.hh"
+#include "fontutils.hh"
 #include "text.hh"
 
 static constexpr auto NFIGURES = 7;
@@ -291,10 +292,7 @@ const bool (*Game::getFig(Falling &falling))[4]
 void Game::onInit()
 {
   sdl_.init("tetris", (8 + 1 + 4) * cellSize_, 16 * cellSize_);
-  {
-    std::ifstream in("digits.font");
-    font_.load(in);
-  }
+  readFontFromFile(font_, "digits.font");
 
   srand(time(NULL));
   spawn();

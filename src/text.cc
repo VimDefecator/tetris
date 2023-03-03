@@ -11,8 +11,8 @@ void renderText(std::string_view text,
   auto wxy = sdl.withBaseXY(baseXY);
 
   for(int i = 0; i < text.size(); ++i)
-    for(int x = 0; x < font.width(); ++x)
-      for(int y = 0; y < font.height(); ++y)
+    for(int x = 0; x < font.wid(); ++x)
+      for(int y = 0; y < font.hei(); ++y)
         if(font[text[i]][x][y])
-          sdl.pixArtPut(font.width()*i + x, y, scale);
+          sdl.pixArtPut(font.wid()*i + x, y, scale);
 }

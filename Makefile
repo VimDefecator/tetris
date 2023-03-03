@@ -10,15 +10,16 @@ define TARGET_template =
 	$(CXX) $(LDFLAGS) -o $(1) $$(OBJS_$(1))
 endef
 
-ALLUNITS := tetris fontedit fontpad fontclean sdlctx font args text
+ALLUNITS := tetris fontedit fontpad fontclean fontdemo sdlctx font args text
 ALLOBJS := $(ALLUNITS:%=build/%.o)
 ALLDEPS := $(ALLUNITS:%=build/%.d)
 
-TARGETS := tetris fontedit fontpad fontclean
+TARGETS := tetris fontedit fontpad fontclean fontdemo
 UNITS_tetris := tetris sdlctx font text
 UNITS_fontedit := fontedit font args sdlctx
 UNITS_fontpad := fontpad font args
 UNITS_fontclean := fontclean font args
+UNITS_fontdemo := fontdemo sdlctx font text args
 
 all: $(TARGETS)
 

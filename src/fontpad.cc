@@ -1,4 +1,5 @@
 #include "font.hh"
+#include "fontutils.hh"
 #include "args.hh"
 #include <fstream>
 #include <algorithm>
@@ -12,19 +13,15 @@ int main(int argc, char **argv)
                          {"u", "up"},
                          {"d", "down"}}, {}); 
   
-  Font ifont;
-  {
-    std::ifstream in(std::string(args.get("in")));
-    ifont.load(in);
-  }
+  auto ifont = readFontFromFile(args.get("in").data());
   
   auto l = args.getIntO("left").value_or(0);
   auto r = args.getIntO("right").value_or(0);
   auto u = args.getIntO("up").value_or(0);
   auto d = args.getIntO("down").value_or(0);
 
-  auto iw = ifont.width();
-  auto ih = ifont.height();
+  auto iw = ifont.wid();
+  auto ih = ifont.hei();
   auto ow = iw + l + r;
   auto oh = ih + u + d;
   
@@ -43,8 +40,5 @@ int main(int argc, char **argv)
       for(int y = fromY; y < toY; ++y)
         ofont[c][x+xShift][y+yShift] = bool(ifont[c][x][y]);
   
-  {
-    std::ofstream out(std::string(args.get("out")));
-    ofont.store(out);
-  }
+  writeFontToFile(ofont, args.get("out").data());
 }
