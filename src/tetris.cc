@@ -13,6 +13,7 @@
 #include "font.hh"
 #include "fontutils.hh"
 #include "text.hh"
+#include "args.hh"
 
 static constexpr auto NFIGURES = 7;
 static constexpr auto NCOLORS = 6;
@@ -292,7 +293,7 @@ const bool (*Game::getFig(Falling &falling))[4]
 void Game::onInit()
 {
   sdl_.init("tetris", (8 + 1 + 4) * cellSize_, 16 * cellSize_);
-  readFontFromFile(font_, "digits.font");
+  readFontFromFile(font_, "68.font");
 
   srand(time(NULL));
   spawn();
@@ -389,22 +390,24 @@ void Game::onRender()
       if(auto col = cell_[y][x])
         renderCell(x, y, col);
 
-  for(int y = 0; y < 16; y++)
-    renderCell(8, y, 0);
+  sdl_.withColor(Sdl::GRAY)
+      ->withBaseXY({cellSize_ * 8, 0})
+      ->fillRect(0, 0, cellSize_ / 2, cellSize_ * 16);
 
   renderFalling(falling_, falling_.x, falling_.y);
   renderFalling(fallingNext_, 9, 0);
   
   auto scoreStr = std::to_string(score_);
-  if(scoreStr.size() < 4)
-    scoreStr = std::string(4 - scoreStr.size(), ' ') + scoreStr;
+  if(scoreStr.size() < 5)
+    scoreStr = std::string(5 - scoreStr.size(), ' ') + scoreStr;
 
   renderText(scoreStr,
+             false,
              font_,
              sdl_,
              Sdl::WHITE,
              {9 * cellSize_, 14 * cellSize_},
-             cellSize_ / 4);
+             cellSize_ / 8);
 
   sdl_.present();
 }
@@ -435,5 +438,8 @@ void Game::execute(int scale)
 
 int main(int argc, char **argv)
 {
-  Game().execute(argc > 1 ? atoi(argv[1]) : 1);
+  Args args(argc, argv, {{"s", "scale"},
+                         {"n", "name"}}, {});
+
+  Game().execute(args.getIntO("scale").value_or(1));
 }

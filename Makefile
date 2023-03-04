@@ -15,7 +15,7 @@ ALLOBJS := $(ALLUNITS:%=build/%.o)
 ALLDEPS := $(ALLUNITS:%=build/%.d)
 
 TARGETS := tetris fontedit fontpad fontclean fontdemo
-UNITS_tetris := tetris sdlctx font text
+UNITS_tetris := tetris sdlctx font text args
 UNITS_fontedit := fontedit font args sdlctx
 UNITS_fontpad := fontpad font args
 UNITS_fontclean := fontclean font args

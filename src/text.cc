@@ -1,6 +1,8 @@
 #include "text.hh"
+#include <cctype>
 
 void renderText(std::string_view text,
+                bool uppercase,
                 Font &font,
                 Sdl::Context &sdl,
                 Sdl::Color color,
@@ -10,9 +12,25 @@ void renderText(std::string_view text,
   auto wcl = sdl.withColor(color);
   auto wxy = sdl.withBaseXY(baseXY);
 
-  for(int i = 0; i < text.size(); ++i)
-    for(int x = 0; x < font.wid(); ++x)
-      for(int y = 0; y < font.hei(); ++y)
-        if(font[text[i]][x][y])
-          sdl.pixArtPut(font.wid()*i + x, y, scale);
+  int row = 0, col = 0;
+
+  for(auto c : text)
+  {
+    if(c != '\n')
+    {
+      auto fontElem = font[uppercase ? toupper(c) : int(c)];
+
+      for(int x = 0; x < font.wid(); ++x)
+        for(int y = 0; y < font.hei(); ++y)
+          if(fontElem[x][y])
+            sdl.pixArtPut(font.wid()*col + x, font.hei()*row + y, scale);
+            
+      col += 1;
+    }
+    else
+    {
+      row += 1;
+      col = 0;
+    }
+  }
 }
