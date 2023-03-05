@@ -265,6 +265,7 @@ void Game::reduce()
     {
       memset(line, 0, sizeof(*line));
       memmove(&cell_[1], &cell_[0], (uint8_t *)line - (uint8_t *)cell_);
+      memset(&cell_[0], 0, sizeof(cell_[0]));
       numReduced++;
     }
   }
