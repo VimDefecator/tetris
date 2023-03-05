@@ -144,7 +144,7 @@ static const std::array<Figure, NFIGURES> g_figures
 class Game
 {
 public:
-  void execute(int scale);
+  void execute(int scale, std::string_view currentName);
 
 private:
   struct Falling
@@ -401,24 +401,89 @@ void Game::onRender()
   if(scoreStr.size() < 5)
     scoreStr = std::string(5 - scoreStr.size(), ' ') + scoreStr;
 
-  renderText(scoreStr,
-             false,
-             font_,
-             sdl_,
-             Sdl::WHITE,
-             {9 * cellSize_, 14 * cellSize_},
-             cellSize_ / 8);
+
+  {
+    auto wxy = sdl_.withBaseXY({9 * cellSize_, 14 * cellSize_});
+    auto wcl = sdl_.withColor(Sdl::WHITE);
+    renderText(sdl_, scoreStr, font_, cellSize_ / 8);
+  }
 
   sdl_.present();
 }
 
-void Game::execute(int scale)
+namespace
+{
+  using Scoreboard = std::vector<std::pair<std::string, int>>;
+
+  std::string prepareNameForScoreboard(std::string_view name, int length)
+  {
+    std::string res;
+
+    for(auto c : name)
+      if(isalpha(c))
+        res += char(toupper(c));
+    
+    return res.substr(0, length);
+  }
+
+  Scoreboard readScoreboardFromFile(std::istream &in)
+  {
+    Scoreboard scoreboard;
+
+    while(!in.eof())
+    {
+      std::string name;
+      int score;
+      in >> name >> score;
+      if(!in.eof())
+        scoreboard.emplace_back(std::move(name), score);
+    }
+    
+    return scoreboard;
+  }
+
+  Scoreboard readScoreboardFromFile(const char *filename)
+  {
+    if(auto in = std::ifstream(filename))
+      return readScoreboardFromFile(in);
+    else
+      return {};
+  }
+  
+  void insertToScoreboard(Scoreboard &scoreboard, std::string_view name, int score)
+  {
+    auto it = std::ranges::find(scoreboard, name, &std::pair<std::string,int>::first);
+    if(it != scoreboard.end())
+    {
+      if(it->second < score)
+        it->second = score;
+    }
+    else
+    {
+      scoreboard.emplace_back(name, score);
+    }
+    
+    std::ranges::sort(scoreboard, std::ranges::greater(), &std::pair<std::string,int>::second);
+    
+    if(scoreboard.size() > 14)
+      scoreboard.resize(14);
+  }
+  
+  std::string dumpScoreboardLine(const std::string &name, int score, int nameLen, int scoreLen)
+  {
+    auto scoreStr = std::to_string(score);
+    return name + std::string(nameLen - name.size(), ' ') + " "
+         + std::string(scoreLen - scoreStr.size(), ' ') + scoreStr + "\n";
+  }
+}
+
+void Game::execute(int scale, std::string_view currentName)
 {
   cellSize_ = scale * 16;
 
   onInit();
 
-  while(true)
+  while(!quit_)
   {
     while(sdl_.poll())
       onEvent(sdl_.event());
@@ -426,14 +491,44 @@ void Game::execute(int scale)
     onLoop();
     onRender();
 
-    if(quit_)
-    {
-      std::cout << "SCORE: " << score_ << '\n';
-      return;
-    }
-
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
+  
+  if(auto currentNameFixed = prepareNameForScoreboard(currentName, 10); !currentNameFixed.empty())
+  {
+    auto scoreboard = readScoreboardFromFile("scoreboard");
+    insertToScoreboard(scoreboard, currentNameFixed, score_);
+    
+    auto out = std::ofstream("scoreboard", std::ios::trunc);
+
+    sdl_.setColor(Sdl::BLACK);
+    sdl_.clear();
+
+    sdl_.setBaseXY({cellSize_ / 2, cellSize_ / 2});
+
+    for(int i = 0; i < scoreboard.size(); ++i)
+    {
+      const auto &[name, score] = scoreboard[i];
+
+      auto isSelf = name == currentNameFixed;
+
+      auto line = dumpScoreboardLine(name, score, 10, 5);
+
+      out << line;
+
+      sdl_.setColor(isSelf ? Sdl::gray(192) : Sdl::gray(128));
+      renderText(sdl_, line, font_, cellSize_ / 8, i);
+    }
+    
+    sdl_.setColor(Sdl::WHITE);
+    renderText(sdl_, dumpScoreboardLine(currentNameFixed, score_, 10, 5), font_, cellSize_ / 8, 14);
+
+    sdl_.present();
+    
+    while(sdl_.wait(), sdl_.event().type != SDL_QUIT);
+  }
+
+  std::cout << "SCORE: " << score_ << '\n';
 }
 
 int main(int argc, char **argv)
@@ -441,5 +536,6 @@ int main(int argc, char **argv)
   Args args(argc, argv, {{"s", "scale"},
                          {"n", "name"}}, {});
 
-  Game().execute(args.getIntO("scale").value_or(1));
+  Game().execute(args.getIntO("scale").value_or(1),
+                 args.getO("name").value_or(""));
 }

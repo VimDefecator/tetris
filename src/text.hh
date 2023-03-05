@@ -4,10 +4,8 @@
 #include "sdlctx.hh"
 #include "font.hh"
 
-void renderText(std::string_view text,
-                bool uppercase,
+void renderText(Sdl::Context &sdl,
+                std::string_view text,
                 Font &font,
-                Sdl::Context &sdl,
-                Sdl::Color color,
-                Sdl::XY baseXY,
-                int scale);
+                int scale,
+                int skipLines = 0);

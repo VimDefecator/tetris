@@ -1,24 +1,19 @@
 #include "text.hh"
 #include <cctype>
 
-void renderText(std::string_view text,
-                bool uppercase,
+void renderText(Sdl::Context &sdl,
+                std::string_view text,
                 Font &font,
-                Sdl::Context &sdl,
-                Sdl::Color color,
-                Sdl::XY baseXY,
-                int scale)
+                int scale,
+                int skipLines/* = 0*/)
 {
-  auto wcl = sdl.withColor(color);
-  auto wxy = sdl.withBaseXY(baseXY);
-
-  int row = 0, col = 0;
+  int row = skipLines, col = 0;
 
   for(auto c : text)
   {
     if(c != '\n')
     {
-      auto fontElem = font[uppercase ? toupper(c) : int(c)];
+      auto fontElem = font[c];
 
       for(int x = 0; x < font.wid(); ++x)
         for(int y = 0; y < font.hei(); ++y)

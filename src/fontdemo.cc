@@ -46,6 +46,10 @@ int main(int argc, char **argv)
             ? std::string(*textArg)
             : std::string(std::istreambuf_iterator<char>(std::cin), std::istreambuf_iterator<char>());
   
+  if(args.is("uppercase"))
+    for(auto &c : text)
+      c = toupper(c);
+  
   auto [numRows, numCols] = getNumLinesAndMaxSize(text);
   
   auto font = readFontFromFile(file.data());
@@ -55,7 +59,7 @@ int main(int argc, char **argv)
   sdl.setColor(Sdl::BLACK);
   sdl.clear();
   
-  renderText(text, args.is("uppercase"), font, sdl, Sdl::WHITE, {0, 0}, scale);
+  renderText(sdl, text, font, scale);
   sdl.present();
   
   while(sdl.wait(), sdl.event().type != SDL_QUIT);
