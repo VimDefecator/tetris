@@ -163,10 +163,11 @@ private:
   bool collides();
   const bool (*getFig(Falling &falling))[4];
 
-  void onInit();
-  void onEvent(const SDL_Event &event);
-  void onLoop();
-  void onRender();
+  void init();
+  void handleEvent(const SDL_Event &event);
+  void loop();
+  void render();
+  void finalize(std::string_view currentName);
 
 private:
   Sdl::Context sdl_;
@@ -291,7 +292,7 @@ const bool (*Game::getFig(Falling &falling))[4]
   return falling.fig->views[falling.v];
 }
 
-void Game::onInit()
+void Game::init()
 {
   sdl_.init("tetris", (8 + 1 + 4) * cellSize_, 16 * cellSize_);
   readFontFromFile(font_, "68.font");
@@ -301,7 +302,7 @@ void Game::onInit()
   spawn();
 }
 
-void Game::onEvent(const SDL_Event &event)
+void Game::handleEvent(const SDL_Event &event)
 {
   switch(event.type)
   {
@@ -331,7 +332,7 @@ void Game::onEvent(const SDL_Event &event)
 
 }
 
-void Game::onLoop()
+void Game::loop()
 {
   if(clock_ == 0)
   {
@@ -350,7 +351,7 @@ void Game::onLoop()
   clock_ = (clock_ + 1) % 10;
 }
 
-void Game::onRender()
+void Game::render()
 {
   sdl_.setColor(Sdl::BLACK);
   sdl_.clear();
@@ -418,13 +419,20 @@ namespace
 
   std::string prepareNameForScoreboard(std::string_view name, int length)
   {
-    std::string res;
+    if(!name.empty())
+    {
+      std::string res;
 
-    for(auto c : name)
-      if(isalpha(c))
-        res += char(toupper(c));
-    
-    return res.substr(0, length);
+      for(auto c : name)
+        if(isalpha(c))
+          res += char(toupper(c));
+      
+      return res.substr(0, length);
+    }
+    else
+    {
+      return "-";
+    }
   }
 
   Scoreboard readScoreboardFromFile(std::istream &in)
@@ -478,58 +486,63 @@ namespace
   }
 }
 
+void Game::finalize(std::string_view currentName)
+{
+  auto scoreboard = readScoreboardFromFile("scoreboard");
+  
+  auto currentNameFixed = prepareNameForScoreboard(currentName, 10);
+
+  insertToScoreboard(scoreboard, currentNameFixed, score_);
+  
+  auto out = std::ofstream("scoreboard", std::ios::trunc);
+
+  sdl_.setColor(Sdl::BLACK);
+  sdl_.clear();
+
+  sdl_.setBaseXY({cellSize_ / 2, cellSize_ / 2});
+
+  for(int i = 0; i < scoreboard.size(); ++i)
+  {
+    const auto &[name, score] = scoreboard[i];
+
+    auto isSelf = name == currentNameFixed;
+
+    auto line = dumpScoreboardLine(name, score, 10, 5);
+
+    out << line;
+
+    sdl_.setColor(isSelf ? Sdl::gray(192) : Sdl::gray(128));
+    renderText(sdl_, line, font_, cellSize_ / 8, i);
+  }
+  
+  sdl_.setColor(Sdl::WHITE);
+  renderText(sdl_, dumpScoreboardLine(currentNameFixed, score_, 10, 5), font_, cellSize_ / 8, 14);
+
+  sdl_.present();
+  
+  while(sdl_.wait(), sdl_.event().type != SDL_QUIT);
+
+  std::cout << "SCORE: " << score_ << '\n';
+}
+
 void Game::execute(int scale, std::string_view currentName)
 {
   cellSize_ = scale * 16;
 
-  onInit();
+  init();
 
   while(!quit_)
   {
     while(sdl_.poll())
-      onEvent(sdl_.event());
+      handleEvent(sdl_.event());
 
-    onLoop();
-    onRender();
+    loop();
+    render();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
   
-  if(auto currentNameFixed = prepareNameForScoreboard(currentName, 10); !currentNameFixed.empty())
-  {
-    auto scoreboard = readScoreboardFromFile("scoreboard");
-    insertToScoreboard(scoreboard, currentNameFixed, score_);
-    
-    auto out = std::ofstream("scoreboard", std::ios::trunc);
-
-    sdl_.setColor(Sdl::BLACK);
-    sdl_.clear();
-
-    sdl_.setBaseXY({cellSize_ / 2, cellSize_ / 2});
-
-    for(int i = 0; i < scoreboard.size(); ++i)
-    {
-      const auto &[name, score] = scoreboard[i];
-
-      auto isSelf = name == currentNameFixed;
-
-      auto line = dumpScoreboardLine(name, score, 10, 5);
-
-      out << line;
-
-      sdl_.setColor(isSelf ? Sdl::gray(192) : Sdl::gray(128));
-      renderText(sdl_, line, font_, cellSize_ / 8, i);
-    }
-    
-    sdl_.setColor(Sdl::WHITE);
-    renderText(sdl_, dumpScoreboardLine(currentNameFixed, score_, 10, 5), font_, cellSize_ / 8, 14);
-
-    sdl_.present();
-    
-    while(sdl_.wait(), sdl_.event().type != SDL_QUIT);
-  }
-
-  std::cout << "SCORE: " << score_ << '\n';
+  finalize(currentName);
 }
 
 int main(int argc, char **argv)
