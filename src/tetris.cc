@@ -167,6 +167,7 @@ private:
   void handleEvent(const SDL_Event &event);
   void loop();
   void render();
+  void renderPause();
   void finalize(std::string_view currentName);
 
 private:
@@ -183,6 +184,7 @@ private:
 
   int score_ = 0;
 
+  bool pause_ = false;
   bool quit_ = false;
 };
 
@@ -307,26 +309,52 @@ void Game::handleEvent(const SDL_Event &event)
   switch(event.type)
   {
     case SDL_KEYDOWN:
-    {
       switch(event.key.keysym.sym)
       {
-        case SDLK_LEFT  : moveLeft();  break;
-        case SDLK_RIGHT : moveRight(); break;
-        case SDLK_UP    : turn();      break;
-        case SDLK_DOWN  : skip();      break;
+        case SDLK_LEFT:
+          if(!pause_)
+            moveLeft();
+        break;
 
-        case 'q': quit_ = true; break;
+        case SDLK_RIGHT:
+          if(!pause_)
+            moveRight();
+        break;
+
+        case SDLK_UP:
+          if(!pause_)
+            turn();
+        break;
+
+        case SDLK_DOWN:
+          if(!pause_)
+            skip();
+        break;
+        
+        case SDLK_SPACE:
+          if((pause_ = !pause_))
+          {
+            renderPause();
+
+            while(pause_ && !quit_)
+            {
+              sdl_.wait();
+              handleEvent(sdl_.event());
+            }
+          }
+        break;
+
+        case 'q':
+          quit_ = true;
+        break;
       }
-    }
     break;
+
     case SDL_QUIT:
-    {
       quit_ = true;
-    }
     break;
+
     default:
-    {
-    }
     break;
   }
 
@@ -410,6 +438,21 @@ void Game::render()
     renderText(sdl_, scoreStr, font_, cellSize_ / 8);
   }
 
+  sdl_.present();
+}
+
+void Game::renderPause()
+{
+  auto wxy = sdl_.withBaseXY({cellSize_ / 2, 7 * cellSize_});
+  {
+    auto wcl = sdl_.withColor(Sdl::BLACK);
+    renderText(sdl_, "PAUSE", font_, cellSize_ / 4, 1.);
+  }
+  {
+    auto wcl = sdl_.withColor(Sdl::WHITE);
+    renderText(sdl_, "PAUSE", font_, cellSize_ / 4);
+  }
+  
   sdl_.present();
 }
 
@@ -512,11 +555,11 @@ void Game::finalize(std::string_view currentName)
     out << line;
 
     sdl_.setColor(isSelf ? Sdl::gray(192) : Sdl::gray(128));
-    renderText(sdl_, line, font_, cellSize_ / 8, i);
+    renderText(sdl_, line, font_, cellSize_ / 8, 0., i);
   }
   
   sdl_.setColor(Sdl::WHITE);
-  renderText(sdl_, dumpScoreboardLine(currentNameFixed, score_, 10, 5), font_, cellSize_ / 8, 14);
+  renderText(sdl_, dumpScoreboardLine(currentNameFixed, score_, 10, 5), font_, cellSize_ / 8, 0., 14);
 
   sdl_.present();
   
@@ -531,10 +574,13 @@ void Game::execute(int scale, std::string_view currentName)
 
   init();
 
-  while(!quit_)
+  while(true)
   {
-    while(sdl_.poll())
+    while(!quit_ && sdl_.poll())
       handleEvent(sdl_.event());
+    
+    if(quit_)
+      break;
 
     loop();
     render();

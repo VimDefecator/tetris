@@ -5,6 +5,7 @@ void renderText(Sdl::Context &sdl,
                 std::string_view text,
                 Font &font,
                 int scale,
+                float pixelOverlap/* = 0.*/,
                 int skipLines/* = 0*/)
 {
   int row = skipLines, col = 0;
@@ -18,7 +19,7 @@ void renderText(Sdl::Context &sdl,
       for(int x = 0; x < font.wid(); ++x)
         for(int y = 0; y < font.hei(); ++y)
           if(fontElem[x][y])
-            sdl.pixArtPut(font.wid()*col + x, font.hei()*row + y, scale);
+            sdl.pixArtPut(font.wid()*col + x, font.hei()*row + y, scale, 1. + pixelOverlap);
             
       col += 1;
     }
