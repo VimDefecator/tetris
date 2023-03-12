@@ -59,6 +59,7 @@ int main(int argc, char **argv)
   sdl.setColor(Sdl::BLACK);
   sdl.clear();
   
+  sdl.setColor(Sdl::WHITE);
   renderText(sdl, text, font, scale);
   sdl.present();
   
