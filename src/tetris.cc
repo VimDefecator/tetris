@@ -144,7 +144,7 @@ static const std::array<Figure, NFIGURES> g_figures
 class Game
 {
 public:
-  void execute(int scale, std::string_view currentName);
+  void execute(int scale, std::string_view currentName, bool help);
 
 private:
   struct Falling
@@ -163,18 +163,19 @@ private:
   bool collides();
   const bool (*getFig(Falling &falling))[4];
 
-  void init();
+  void init(int scale);
+  void showHelp();
   void handleEvent(const SDL_Event &event);
   void loop();
   void render();
   void renderPause();
-  void finalize(std::string_view currentName);
+  void showScoreboard(std::string_view currentName);
 
 private:
   Sdl::Context sdl_;
   Font font_;
 
-  int cellSize_;
+  int scale_, cellSize_;
 
   uint8_t cell_[16][8] = {};
 
@@ -294,14 +295,35 @@ const bool (*Game::getFig(Falling &falling))[4]
   return falling.fig->views[falling.v];
 }
 
-void Game::init()
+void Game::init(int scale)
 {
+  scale_ = scale;
+  cellSize_ = scale * 16;
+
   sdl_.init("tetris", (8 + 1 + 4) * cellSize_, 16 * cellSize_);
   readFontFromFile(font_, "68.font");
 
   srand(time(NULL));
   spawn();
   spawn();
+}
+
+void Game::showHelp()
+{
+  auto wxy = sdl_.withBaseXY({scale_ * 4, scale_ * 4});
+  auto wcl = sdl_.withColor(Sdl::WHITE);
+
+  renderText(sdl_, "LEFT,RIGHT|MOVE\n"
+                   "UP        |ROTATE\n"
+                   "DOWN      |SKIP\n"
+                   "SPACE     |PAUSE\n"
+                   "Q,ESC     |QUIT\n", font_, scale_ * 2);
+  
+  sdl_.present();
+
+  while(sdl_.wait(), sdl_.event().type != SDL_KEYDOWN && sdl_.event().type != SDL_QUIT);
+  
+  quit_ = sdl_.event().type == SDL_QUIT;
 }
 
 void Game::handleEvent(const SDL_Event &event)
@@ -436,7 +458,7 @@ void Game::render()
   {
     auto wxy = sdl_.withBaseXY({9 * cellSize_, 14 * cellSize_});
     auto wcl = sdl_.withColor(Sdl::WHITE);
-    renderText(sdl_, scoreStr, font_, cellSize_ / 8);
+    renderText(sdl_, scoreStr, font_, scale_ * 2);
   }
 
   sdl_.present();
@@ -444,14 +466,14 @@ void Game::render()
 
 void Game::renderPause()
 {
-  auto wxy = sdl_.withBaseXY({cellSize_ / 2, 7 * cellSize_});
+  auto wxy = sdl_.withBaseXY({scale_ * 4, 7 * cellSize_});
   {
     auto wcl = sdl_.withColor(Sdl::BLACK);
-    renderText(sdl_, "PAUSE", font_, cellSize_ / 4, 1.);
+    renderText(sdl_, "PAUSE", font_, scale_ * 4, 1.);
   }
   {
     auto wcl = sdl_.withColor(Sdl::WHITE);
-    renderText(sdl_, "PAUSE", font_, cellSize_ / 4);
+    renderText(sdl_, "PAUSE", font_, scale_ * 4);
   }
   
   sdl_.present();
@@ -530,7 +552,7 @@ namespace
   }
 }
 
-void Game::finalize(std::string_view currentName)
+void Game::showScoreboard(std::string_view currentName)
 {
   auto scoreboard = readScoreboardFromFile("scoreboard");
   
@@ -543,7 +565,7 @@ void Game::finalize(std::string_view currentName)
   sdl_.setColor(Sdl::BLACK);
   sdl_.clear();
 
-  sdl_.setBaseXY({cellSize_ / 2, cellSize_ / 2});
+  sdl_.setBaseXY({scale_ * 8, scale_ * 8});
 
   for(int i = 0; i < scoreboard.size(); ++i)
   {
@@ -556,11 +578,11 @@ void Game::finalize(std::string_view currentName)
     out << line;
 
     sdl_.setColor(isSelf ? Sdl::gray(192) : Sdl::gray(128));
-    renderText(sdl_, line, font_, cellSize_ / 8, 0., i);
+    renderText(sdl_, line, font_, scale_ * 2, 0., i);
   }
   
   sdl_.setColor(Sdl::WHITE);
-  renderText(sdl_, dumpScoreboardLine(currentNameFixed, score_, 10, 5), font_, cellSize_ / 8, 0., 14);
+  renderText(sdl_, dumpScoreboardLine(currentNameFixed, score_, 10, 5), font_, scale_ * 2, 0., 14);
 
   sdl_.present();
   
@@ -572,11 +594,12 @@ void Game::finalize(std::string_view currentName)
   std::cout << "SCORE: " << score_ << '\n';
 }
 
-void Game::execute(int scale, std::string_view currentName)
+void Game::execute(int scale, std::string_view currentName, bool help)
 {
-  cellSize_ = scale * 16;
+  init(scale);
 
-  init();
+  if(help)
+    showHelp();
 
   while(true)
   {
@@ -592,14 +615,15 @@ void Game::execute(int scale, std::string_view currentName)
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
   
-  finalize(currentName);
+  showScoreboard(currentName);
 }
 
 int main(int argc, char **argv)
 {
   Args args(argc, argv, {{"s", "scale"},
-                         {"n", "name"}}, {});
+                         {"n", "name"}}, {{"h", "help"}});
 
   Game().execute(args.getIntO("scale").value_or(1),
-                 args.getO("name").value_or(""));
+                 args.getO("name").value_or(""),
+                 args.is("help"));
 }
