@@ -345,6 +345,7 @@ void Game::handleEvent(const SDL_Event &event)
         break;
 
         case 'q':
+        case SDLK_ESCAPE:
           quit_ = true;
         break;
       }
@@ -563,7 +564,10 @@ void Game::finalize(std::string_view currentName)
 
   sdl_.present();
   
-  while(sdl_.wait(), sdl_.event().type != SDL_QUIT);
+  do sdl_.wait(); while(!( sdl_.event().type == SDL_QUIT
+                        || sdl_.event().type == SDL_KEYDOWN
+                          && ( sdl_.event().key.keysym.sym == 'q'
+                            || sdl_.event().key.keysym.sym == SDLK_ESCAPE)));
 
   std::cout << "SCORE: " << score_ << '\n';
 }
