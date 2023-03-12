@@ -168,8 +168,10 @@ private:
   void handleEvent(const SDL_Event &event);
   void loop();
   void render();
-  void renderPause();
+  void renderTextInCenter(std::string_view text, int scale);
   void showScoreboard(std::string_view currentName);
+  
+  void delay(int factor);
 
 private:
   Sdl::Context sdl_;
@@ -185,6 +187,7 @@ private:
 
   int score_ = 0;
 
+  bool update_ = false;
   bool pause_ = false;
   bool quit_ = false;
 };
@@ -215,6 +218,8 @@ void Game::moveLeft()
     falling_.x--;
     if(collides())
       falling_.x++;
+  
+    update_ = true;
   }
 }
 
@@ -223,6 +228,8 @@ void Game::moveRight()
   falling_.x++;
   if(collides())
     falling_.x--;
+
+  update_ = true;
 }
 
 void Game::turn()
@@ -230,6 +237,8 @@ void Game::turn()
   falling_.v = (falling_.v + 1) % 4;
   if(collides())
     falling_.v = (falling_.v + 3) % 4;
+  
+  update_ = true;
 }
 
 void Game::skip()
@@ -244,6 +253,8 @@ void Game::skip()
   {
     do falling_.y++; while(!collides());
     clock_ = 1;
+    
+    update_ = true;
   }
 
   falling_.y--;
@@ -263,18 +274,36 @@ void Game::reduce()
 {
   int numReduced = 0;
 
-  for(auto line = &cell_[0]; line < &cell_[16]; line++)
-  {
-    if(std::all_of(&**line, &**(line+1), std::identity()))
-    {
-      memset(line, 0, sizeof(*line));
-      memmove(&cell_[1], &cell_[0], (uint8_t *)line - (uint8_t *)cell_);
-      memset(&cell_[0], 0, sizeof(cell_[0]));
-      numReduced++;
-    }
-  }
+  std::vector<int> fullRows;
 
-  score_ += numReduced * numReduced;
+  for(int i = 0; i < 16; i++)
+    if(std::all_of(&cell_[i][0], &cell_[i+1][0], std::identity()))
+      fullRows.push_back(i);
+
+  if(fullRows.empty())
+    return;
+
+  for(auto i : fullRows)
+  {
+    memset(cell_[i], 0, sizeof(cell_[i]));
+    memmove(&cell_[1], &cell_[0], (uint8_t *)cell_[i] - (uint8_t *)cell_);
+    memset(&cell_[0], 0, sizeof(cell_[0]));
+  }
+  
+  auto dscore = fullRows.size() * fullRows.size();
+
+  score_ += dscore;
+  
+  sdl_.setColor(Sdl::BLACK);
+
+  for(auto i : fullRows)
+    sdl_.fillRect(0, i * cellSize_, 8 * cellSize_, cellSize_);
+  
+  renderTextInCenter("+" + std::to_string(dscore), 8);
+
+  sdl_.present();
+
+  delay(5);
 }
 
 bool Game::collides()
@@ -356,7 +385,7 @@ void Game::handleEvent(const SDL_Event &event)
         case SDLK_SPACE:
           if((pause_ = !pause_))
           {
-            renderPause();
+            renderTextInCenter("PAUSE", 4);
 
             while(pause_ && !quit_)
             {
@@ -397,6 +426,8 @@ void Game::loop()
       if(collides())
         quit_ = true;
     }
+    
+    update_ = true;
   }
 
   clock_ = (clock_ + 1) % 10;
@@ -404,6 +435,9 @@ void Game::loop()
 
 void Game::render()
 {
+  if(!update_)
+    return;
+
   sdl_.setColor(Sdl::BLACK);
   sdl_.clear();
 
@@ -462,20 +496,27 @@ void Game::render()
   }
 
   sdl_.present();
+  
+  update_ = false;
 }
 
-void Game::renderPause()
+void Game::renderTextInCenter(std::string_view text, int scale)
 {
-  auto wxy = sdl_.withBaseXY({scale_ * 4, 7 * cellSize_});
+  auto resultScale = scale_ * scale;
+  auto resultWidth = text.size() * font_.wid() * resultScale;
+  auto resultHeight = font_.hei() * resultScale;
+
+  auto wxy = sdl_.withBaseXY({(cellSize_ * 8 - resultWidth) / 2,
+                              (cellSize_ * 16 - resultHeight) / 2});
   {
     auto wcl = sdl_.withColor(Sdl::BLACK);
-    renderText(sdl_, "PAUSE", font_, scale_ * 4, 1.);
+    renderText(sdl_, text, font_, resultScale, 1.);
   }
   {
     auto wcl = sdl_.withColor(Sdl::WHITE);
-    renderText(sdl_, "PAUSE", font_, scale_ * 4);
+    renderText(sdl_, text, font_, resultScale);
   }
-  
+
   sdl_.present();
 }
 
@@ -594,6 +635,11 @@ void Game::showScoreboard(std::string_view currentName)
   std::cout << "SCORE: " << score_ << '\n';
 }
 
+void Game::delay(int factor)
+{
+  std::this_thread::sleep_for(std::chrono::milliseconds(factor * 50));
+}
+
 void Game::execute(int scale, std::string_view currentName, bool help)
 {
   init(scale);
@@ -611,8 +657,8 @@ void Game::execute(int scale, std::string_view currentName, bool help)
 
     loop();
     render();
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    
+    delay(1);
   }
   
   showScoreboard(currentName);
