@@ -268,6 +268,8 @@ void Game::land()
     for(int xRel = 0; xRel < 4; xRel++)
       if(fig[yRel][xRel])
         cell_[falling_.y + yRel][falling_.x + xRel] = falling_.col;
+  
+  falling_.fig = nullptr;
 }
 
 void Game::reduce()
@@ -275,35 +277,31 @@ void Game::reduce()
   int numReduced = 0;
 
   std::vector<int> fullRows;
+  fullRows.reserve(4);
 
   for(int i = 0; i < 16; i++)
-    if(std::all_of(&cell_[i][0], &cell_[i+1][0], std::identity()))
+    if(std::all_of(&cell_[i][0], &cell_[i][8], std::identity()))
       fullRows.push_back(i);
 
   if(fullRows.empty())
     return;
 
   for(auto i : fullRows)
-  {
     memset(cell_[i], 0, sizeof(cell_[i]));
-    memmove(&cell_[1], &cell_[0], (uint8_t *)cell_[i] - (uint8_t *)cell_);
-    memset(&cell_[0], 0, sizeof(cell_[0]));
-  }
-  
+
   auto dscore = fullRows.size() * fullRows.size();
 
   score_ += dscore;
   
-  sdl_.setColor(Sdl::BLACK);
+  render();
+  renderTextInCenter("+" + std::to_string(dscore), 8);
+  sdl_.present();
+  delay(5);
 
   for(auto i : fullRows)
-    sdl_.fillRect(0, i * cellSize_, 8 * cellSize_, cellSize_);
+    memmove(cell_[1], cell_[0], (uint8_t *)cell_[i] - (uint8_t *)cell_);
   
-  renderTextInCenter("+" + std::to_string(dscore), 8);
-
-  sdl_.present();
-
-  delay(5);
+  memset(cell_[0], 0, sizeof(cell_[0]));
 }
 
 bool Game::collides()
@@ -321,7 +319,10 @@ bool Game::collides()
 
 const bool (*Game::getFig(Falling &falling))[4]
 {
-  return falling.fig->views[falling.v];
+  if(falling.fig)
+    return falling.fig->views[falling.v];
+  else
+    return nullptr;
 }
 
 void Game::init(int scale)
@@ -342,11 +343,13 @@ void Game::showHelp()
   auto wxy = sdl_.withBaseXY({scale_ * 4, scale_ * 4});
   auto wcl = sdl_.withColor(Sdl::WHITE);
 
-  renderText(sdl_, "LEFT,RIGHT|MOVE\n"
-                   "UP        |ROTATE\n"
-                   "DOWN      |SKIP\n"
-                   "SPACE     |PAUSE\n"
-                   "Q,ESC     |QUIT\n", font_, scale_ * 2);
+  renderText("LEFT,RIGHT|MOVE\n"
+             "UP        |ROTATE\n"
+             "DOWN      |SKIP\n"
+             "SPACE     |PAUSE\n"
+             "Q,ESC     |QUIT\n", {.sdl = sdl_,
+                                   .font = font_,
+                                   .scale = scale_ * 2});
   
   sdl_.present();
 
@@ -386,6 +389,7 @@ void Game::handleEvent(const SDL_Event &event)
           if((pause_ = !pause_))
           {
             renderTextInCenter("PAUSE", 4);
+            sdl_.present();
 
             while(pause_ && !quit_)
             {
@@ -435,9 +439,6 @@ void Game::loop()
 
 void Game::render()
 {
-  if(!update_)
-    return;
-
   sdl_.setColor(Sdl::BLACK);
   sdl_.clear();
 
@@ -464,12 +465,11 @@ void Game::render()
 
   auto renderFalling = [&](Falling &falling, int x, int y)
   {
-    auto fig = getFig(falling);
-
-    for(int yRel = 0; yRel < 4; yRel++)
-      for(int xRel = 0; xRel < 4; xRel++)
-        if(fig[yRel][xRel])
-          renderCell(x + xRel, y + yRel, falling.col);
+    if(auto fig = getFig(falling))
+      for(int yRel = 0; yRel < 4; yRel++)
+        for(int xRel = 0; xRel < 4; xRel++)
+          if(fig[yRel][xRel])
+            renderCell(x + xRel, y + yRel, falling.col);
   };
 
   for(int y = 0; y < 16; y++)
@@ -492,12 +492,10 @@ void Game::render()
   {
     auto wxy = sdl_.withBaseXY({9 * cellSize_, 14 * cellSize_});
     auto wcl = sdl_.withColor(Sdl::WHITE);
-    renderText(sdl_, scoreStr, font_, scale_ * 2);
+    renderText(scoreStr, {.sdl = sdl_,
+                          .font = font_,
+                          .scale = scale_ * 2});
   }
-
-  sdl_.present();
-  
-  update_ = false;
 }
 
 void Game::renderTextInCenter(std::string_view text, int scale)
@@ -510,14 +508,17 @@ void Game::renderTextInCenter(std::string_view text, int scale)
                               (cellSize_ * 16 - resultHeight) / 2});
   {
     auto wcl = sdl_.withColor(Sdl::BLACK);
-    renderText(sdl_, text, font_, resultScale, 1.);
+    renderText(text, {.sdl = sdl_,
+                      .font = font_,
+                      .scale = resultScale,
+                      .pixelOverlap = 1.});
   }
   {
     auto wcl = sdl_.withColor(Sdl::WHITE);
-    renderText(sdl_, text, font_, resultScale);
+    renderText(text, {.sdl = sdl_,
+                      .font = font_,
+                      .scale = resultScale});
   }
-
-  sdl_.present();
 }
 
 namespace
@@ -619,11 +620,17 @@ void Game::showScoreboard(std::string_view currentName)
     out << line;
 
     sdl_.setColor(isSelf ? Sdl::gray(192) : Sdl::gray(128));
-    renderText(sdl_, line, font_, scale_ * 2, 0., i);
+    renderText(line, {.sdl = sdl_,
+                      .font = font_,
+                      .scale = scale_ * 2,
+                      .skipLines = i});
   }
   
   sdl_.setColor(Sdl::WHITE);
-  renderText(sdl_, dumpScoreboardLine(currentNameFixed, score_, 10, 5), font_, scale_ * 2, 0., 14);
+  renderText(dumpScoreboardLine(currentNameFixed, score_, 10, 5), {.sdl = sdl_,
+                                                                   .font = font_,
+                                                                   .scale = scale_ * 2,
+                                                                   .skipLines = 14});
 
   sdl_.present();
   
@@ -656,7 +663,13 @@ void Game::execute(int scale, std::string_view currentName, bool help)
       break;
 
     loop();
-    render();
+
+    if(update_)
+    {
+      render();
+      sdl_.present();
+      update_ = false;
+    }
     
     delay(1);
   }

@@ -60,7 +60,7 @@ int main(int argc, char **argv)
   sdl.clear();
   
   sdl.setColor(Sdl::WHITE);
-  renderText(sdl, text, font, scale);
+  renderText(text, {.sdl = sdl, .font = font, .scale = scale});
   sdl.present();
   
   while(sdl.wait(), sdl.event().type != SDL_QUIT);

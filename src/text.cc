@@ -1,25 +1,23 @@
 #include "text.hh"
 #include <cctype>
 
-void renderText(Sdl::Context &sdl,
-                std::string_view text,
-                Font &font,
-                int scale,
-                float pixelOverlap/* = 0.*/,
-                int skipLines/* = 0*/)
+void renderText(std::string_view text, RenderTextParams p)
 {
-  int row = skipLines, col = 0;
+  int row = p.skipLines, col = 0;
 
   for(auto c : text)
   {
     if(c != '\n')
     {
-      auto fontElem = font[c];
+      auto fontElem = p.font[c];
 
-      for(int x = 0; x < font.wid(); ++x)
-        for(int y = 0; y < font.hei(); ++y)
+      for(int x = 0; x < p.font.wid(); ++x)
+        for(int y = 0; y < p.font.hei(); ++y)
           if(fontElem[x][y])
-            sdl.pixArtPut(font.wid()*col + x, font.hei()*row + y, scale, 1. + pixelOverlap);
+            p.sdl.pixArtPut(p.font.wid()*col + x,
+                            p.font.hei()*row + y,
+                            p.scale,
+                            1. + p.pixelOverlap);
             
       col += 1;
     }
