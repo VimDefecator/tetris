@@ -501,23 +501,20 @@ void Game::render()
 void Game::renderTextInCenter(std::string_view text, int scale)
 {
   auto resultScale = scale_ * scale;
-  auto resultWidth = text.size() * font_.wid() * resultScale;
-  auto resultHeight = font_.hei() * resultScale;
+  auto centerPos = Sdl::XY{cellSize_ * 4, cellSize_ * 8};
 
-  auto wxy = sdl_.withBaseXY({(cellSize_ * 8 - resultWidth) / 2,
-                              (cellSize_ * 16 - resultHeight) / 2});
   {
     auto wcl = sdl_.withColor(Sdl::BLACK);
-    renderText(text, {.sdl = sdl_,
-                      .font = font_,
-                      .scale = resultScale,
-                      .pixelOverlap = 1.});
+    renderTextAt(text, {.sdl = sdl_,
+                        .font = font_,
+                        .scale = resultScale,
+                        .pixelOverlap = 1.}, centerPos, true);
   }
   {
     auto wcl = sdl_.withColor(Sdl::WHITE);
-    renderText(text, {.sdl = sdl_,
-                      .font = font_,
-                      .scale = resultScale});
+    renderTextAt(text, {.sdl = sdl_,
+                        .font = font_,
+                        .scale = resultScale}, centerPos, true);
   }
 }
 

@@ -7,7 +7,16 @@
 namespace Sdl
 {
   using Color = std::tuple<Uint8, Uint8, Uint8>;
-  using XY = std::pair<int, int>;
+  struct XY
+  {
+    int x, y;
+
+    XY operator+(XY other) { return {x + other.x, y + other.y}; }
+    XY operator-(XY other) { return {x - other.x, y - other.y}; }
+
+    XY &operator+=(XY other) { x += other.x; y += other.y; return *this; }
+    XY &operator-=(XY other) { x -= other.x; y -= other.y; return *this; }
+  };
   
   extern const Color BLACK, GRAY, WHITE, RED, GREEN, BLUE, YELLOW, MAGENTA, CYAN;
   
@@ -29,8 +38,8 @@ namespace Sdl
       return WithSetTmp<Context, Color>(this, color, &Context::getColor, &Context::setColor);
     }
     
-    std::pair<int, int> getBaseXY() { return {baseX_, baseY_}; }
-    void setBaseXY(XY xy) { std::tie(baseX_, baseY_) = xy; }
+    XY getBaseXY() { return {baseX_, baseY_}; }
+    void setBaseXY(XY xy) { baseX_ = xy.x, baseY_ = xy.y; }
     
     WithSetTmp<Context, XY> withBaseXY(XY xy)
     {

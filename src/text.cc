@@ -28,3 +28,18 @@ void renderText(std::string_view text, RenderTextParams p)
     }
   }
 }
+
+void renderTextAt(std::string_view text, RenderTextParams p, Sdl::XY pos, bool center/* = false*/)
+{
+  if(center)
+  {
+    auto resWid = text.size() * p.font.wid() * p.scale;
+    auto resHei = p.font.hei() * p.scale;
+
+    pos -= Sdl::XY{int(resWid / 2), int(resHei / 2)};
+  }
+
+  auto wxy = p.sdl.withBaseXY(pos);
+
+  renderText(text, p);
+}
