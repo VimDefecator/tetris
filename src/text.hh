@@ -15,3 +15,5 @@ struct RenderTextParams
 
 void renderText(std::string_view text, RenderTextParams p);
 void renderTextAt(std::string_view text, RenderTextParams p, Sdl::XY pos, bool center = false);
+
+std::pair<size_t, size_t> getNumRowsAndCols(std::string_view str);

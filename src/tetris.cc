@@ -192,6 +192,17 @@ private:
   bool quit_ = false;
 };
 
+namespace
+{
+  bool isQuitEvent(const SDL_Event &event)
+  {
+    return event.type == SDL_QUIT
+        || event.type == SDL_KEYDOWN
+          && ( event.key.keysym.sym == SDLK_q
+            || event.key.keysym.sym == SDLK_ESCAPE);
+  }
+}
+
 void Game::spawn()
 {
   auto r = rand();
@@ -355,65 +366,56 @@ void Game::showHelp()
 
   while(sdl_.wait(), sdl_.event().type != SDL_KEYDOWN && sdl_.event().type != SDL_QUIT);
   
-  quit_ = sdl_.event().type == SDL_QUIT;
+  quit_ = isQuitEvent(sdl_.event());
 }
 
 void Game::handleEvent(const SDL_Event &event)
 {
-  switch(event.type)
+  if(isQuitEvent(event))
   {
-    case SDL_KEYDOWN:
-      switch(event.key.keysym.sym)
-      {
-        case SDLK_LEFT:
-          if(!pause_)
-            moveLeft();
-        break;
-
-        case SDLK_RIGHT:
-          if(!pause_)
-            moveRight();
-        break;
-
-        case SDLK_UP:
-          if(!pause_)
-            turn();
-        break;
-
-        case SDLK_DOWN:
-          if(!pause_)
-            skip();
-        break;
-        
-        case SDLK_SPACE:
-          if((pause_ = !pause_))
-          {
-            renderTextInCenter("PAUSE", 4);
-            sdl_.present();
-
-            while(pause_ && !quit_)
-            {
-              sdl_.wait();
-              handleEvent(sdl_.event());
-            }
-          }
-        break;
-
-        case 'q':
-        case SDLK_ESCAPE:
-          quit_ = true;
-        break;
-      }
-    break;
-
-    case SDL_QUIT:
-      quit_ = true;
-    break;
-
-    default:
-    break;
+    quit_ = true;
+    return;
   }
 
+  if(event.type == SDL_KEYDOWN)
+  {
+    switch(event.key.keysym.sym)
+    {
+      case SDLK_LEFT:
+        if(!pause_)
+          moveLeft();
+      break;
+
+      case SDLK_RIGHT:
+        if(!pause_)
+          moveRight();
+      break;
+
+      case SDLK_UP:
+        if(!pause_)
+          turn();
+      break;
+
+      case SDLK_DOWN:
+        if(!pause_)
+          skip();
+      break;
+      
+      case SDLK_SPACE:
+        if((pause_ = !pause_))
+        {
+          renderTextInCenter("PAUSE", 4);
+          sdl_.present();
+
+          while(pause_ && !quit_)
+          {
+            sdl_.wait();
+            handleEvent(sdl_.event());
+          }
+        }
+      break;
+    }
+  }
 }
 
 void Game::loop()
@@ -631,10 +633,7 @@ void Game::showScoreboard(std::string_view currentName)
 
   sdl_.present();
   
-  do sdl_.wait(); while(!( sdl_.event().type == SDL_QUIT
-                        || sdl_.event().type == SDL_KEYDOWN
-                          && ( sdl_.event().key.keysym.sym == 'q'
-                            || sdl_.event().key.keysym.sym == SDLK_ESCAPE)));
+  do sdl_.wait(); while(!isQuitEvent(sdl_.event()));
 
   std::cout << "SCORE: " << score_ << '\n';
 }
@@ -650,6 +649,9 @@ void Game::execute(int scale, std::string_view currentName, bool help)
 
   if(help)
     showHelp();
+
+  if(quit_)
+    return;
 
   while(true)
   {

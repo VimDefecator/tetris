@@ -5,33 +5,6 @@
 #include "args.hh"
 #include <algorithm>
 
-namespace
-{
-  std::pair<size_t, size_t> getNumLinesAndMaxSize(std::string_view str)
-  {
-    size_t numLines = 0, maxSize = 0;
-
-    auto head = std::string_view(),
-         tail = str;
-    
-    while(!tail.empty())
-    {
-      numLines += 1;
-
-      auto nlpos = tail.find('\n');
-      head = tail.substr(0, nlpos);
-      tail = nlpos != std::string_view::npos
-           ? tail.substr(nlpos + 1)
-           : std::string_view();
-
-      if(head.size() > maxSize)
-        maxSize = head.size();
-    }
-    
-    return {numLines, maxSize};
-  }
-}
-
 int main(int argc, char **argv)
 {
   Args args(argc, argv, {{"f", "file"},
@@ -50,7 +23,7 @@ int main(int argc, char **argv)
     for(auto &c : text)
       c = toupper(c);
   
-  auto [numRows, numCols] = getNumLinesAndMaxSize(text);
+  auto [numRows, numCols] = getNumRowsAndCols(text);
   
   auto font = readFontFromFile(file.data());
 
