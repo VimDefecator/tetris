@@ -590,8 +590,13 @@ bool Game::promptName(std::string &name)
 
       if(input.size() == 1 && name.size() < 10)
       {
-        name += char(toupper(input[0]));
-        render();
+        auto ch = input[0];
+
+        if(isalpha(ch) || isdigit(ch))
+        {
+          name += char(toupper(ch));
+          render();
+        }
       }
     }
     else if(sdl_.event().type == SDL_KEYDOWN)
