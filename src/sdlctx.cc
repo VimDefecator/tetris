@@ -1,14 +1,32 @@
 #include "sdlctx.hh"
+#include <cmath>
+
+namespace
+{
+  Sdl::Color fixLum(Sdl::Color c)
+  {
+    static const double RW = 0.299, GW = 0.587, BW = 0.114;
+
+    double r = c.r, g = c.g, b = c.b;
+    double lumIn = r*r*RW + g*g*GW + b*b*BW;
+    double lumOut = 255.*255.*BW;
+    double fixFactor = sqrt(lumOut / lumIn);
+
+    return {Uint8(std::min(255., r*fixFactor)),
+            Uint8(std::min(255., g*fixFactor)),
+            Uint8(std::min(255., b*fixFactor))};
+  }
+}
 
 const Sdl::Color Sdl::BLACK   = {  0,   0,   0},
-                 Sdl::GRAY    = { 85,  85,  85},
                  Sdl::WHITE   = {255, 255, 255},
-                 Sdl::RED     = {255,   0,   0},
-                 Sdl::GREEN   = {  0, 255,   0},
-                 Sdl::BLUE    = {  0,   0, 255},
-                 Sdl::YELLOW  = {127, 127,   0},
-                 Sdl::MAGENTA = {127,   0, 127},
-                 Sdl::CYAN    = {  0, 127, 127};
+                 Sdl::GRAY    = fixLum(Sdl::Color{255, 255, 255}),
+                 Sdl::RED     = fixLum(Sdl::Color{255,   0,   0}),
+                 Sdl::GREEN   = fixLum(Sdl::Color{  0, 255,   0}),
+                 Sdl::BLUE    = fixLum(Sdl::Color{  0,   0, 255}),
+                 Sdl::YELLOW  = fixLum(Sdl::Color{255, 255,   0}),
+                 Sdl::MAGENTA = fixLum(Sdl::Color{255,   0, 255}),
+                 Sdl::CYAN    = fixLum(Sdl::Color{  0, 255, 255});
 
 Sdl::Color Sdl::gray(Uint8 bri)
 {
@@ -46,9 +64,7 @@ Sdl::Color Sdl::Context::getColor()
 
 void Sdl::Context::setColor(Color color)
 {
-  color_ = color;
-  auto [r, g, b] = color;
-  SDL_SetRenderDrawColor(renderer_, r, g, b, 0xff);
+  SDL_SetRenderDrawColor(renderer_, color.r, color.g, color.b, 0xff);
 }
 
 void Sdl::Context::clear()

@@ -6,7 +6,10 @@
 
 namespace Sdl
 {
-  using Color = std::tuple<Uint8, Uint8, Uint8>;
+  struct Color
+  {
+    Uint8 r, g, b;
+  };
   struct XY
   {
     int x, y;
@@ -18,7 +21,7 @@ namespace Sdl
     XY &operator-=(XY other) { x -= other.x; y -= other.y; return *this; }
   };
   
-  extern const Color BLACK, GRAY, WHITE, RED, GREEN, BLUE, YELLOW, MAGENTA, CYAN;
+  extern const Color BLACK, WHITE, GRAY, RED, GREEN, BLUE, YELLOW, MAGENTA, CYAN;
   
   Color gray(Uint8 bri);
 
@@ -65,8 +68,6 @@ namespace Sdl
     SDL_Renderer *renderer_ = nullptr;
 
     SDL_Event event_;
-    
-    Color color_;
 
     bool initialized_ = false;
     
