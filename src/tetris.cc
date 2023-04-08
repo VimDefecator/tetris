@@ -413,8 +413,13 @@ void Game::render()
 
   auto renderCell = [&](int x, int y, int colIdx)
   {
-    sdl_.setColor(idx2col(colIdx));
+    auto col = idx2col(colIdx);
+
+    sdl_.setColor({Uint8(col.r/2), Uint8(col.g/2), Uint8(col.b/2)});
     sdl_.pixArtPut(x, y, cellSize_, 0.875);
+
+    sdl_.setColor(col);
+    sdl_.pixArtPut(x, y, cellSize_, 0.750);
   };
 
   auto renderFalling = [&](Falling &falling, int x, int y)
