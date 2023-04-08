@@ -9,7 +9,8 @@ struct RenderTextParams
   Sdl::Context &sdl;
   Font &font;
   int scale = 1;
-  int skipLines = 0;
+  int skipCols = 0;
+  int skipRows = 0;
   float pixelOverlap = 0.;
 };
 

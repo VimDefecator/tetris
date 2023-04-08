@@ -22,6 +22,9 @@ public:
   std::optional<int> getIntO(std::string_view name) const;
   int getInt(std::string_view name) const;
 
+  std::optional<std::string> getStrO(std::string_view name) const;
+  std::string getStr(std::string_view name) const;
+
   bool is(std::string_view name) const;
   
   const std::vector<std::string_view> &targets() const { return targets_; }

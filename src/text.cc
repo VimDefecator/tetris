@@ -3,7 +3,7 @@
 
 void renderText(std::string_view text, RenderTextParams p)
 {
-  int row = p.skipLines, col = 0;
+  int row = p.skipRows, col = p.skipCols;
 
   for(auto c : text)
   {
@@ -24,7 +24,7 @@ void renderText(std::string_view text, RenderTextParams p)
     else
     {
       row += 1;
-      col = 0;
+      col = p.skipCols;
     }
   }
 }
@@ -35,8 +35,8 @@ void renderTextAt(std::string_view text, RenderTextParams p, Sdl::XY pos, bool c
   {
     auto [numRows, numCols] = getNumRowsAndCols(text);
 
-    auto resWid = numCols * p.font.wid() * p.scale;
-    auto resHei = numRows * p.font.hei() * p.scale;
+    auto resWid = (numCols + p.skipCols) * p.font.wid() * p.scale;
+    auto resHei = (numRows + p.skipRows) * p.font.hei() * p.scale;
 
     pos -= Sdl::XY{int(resWid / 2), int(resHei / 2)};
   }

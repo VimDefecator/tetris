@@ -15,141 +15,93 @@
 #include "text.hh"
 #include "args.hh"
 
-static constexpr auto NFIGURES = 7;
+static constexpr auto NSHAPES = 7;
 static constexpr auto NCOLORS = 6;
 
-struct Figure
+struct Shape
 {
-  Figure(std::initializer_list<std::string_view> input)
+  Shape(std::string_view input)
   {
+    bool view[4][4];
+
+    for(int y = 0; y < 4; y++)
+      for(int x = 0; x < 4; x++)
+        view[y][x] = input[4*y + x] != ' ';
+
     for(int v = 0; v < 4; v++)
+    {
+      int upmostY = 4, leftmostX = 4;
+
       for(int y = 0; y < 4; y++)
         for(int x = 0; x < 4; x++)
-          views[v][y][x] = std::data(input)[v][4*y + x] != ' ';
+          if(view[y][x])
+          {
+            if(y < upmostY)
+              upmostY = y;
+            if(x < leftmostX)
+              leftmostX = x;
+          }
+
+      memcpy(&views[v][0][0],
+             &view[upmostY][leftmostX],
+             &view[4][0] - &view[upmostY][leftmostX]);
+
+      for(int y = 0; y < 4; y++)
+        for(int x = 0; x < 4; x++)
+          view[3-x][y] = views[v][y][x];
+    }
   }
 
   bool views[4][4][4] = {};
 };
 
-static const std::array<Figure, NFIGURES> g_figures
+static const std::array<Shape, NSHAPES> g_shapes
 {{
-  {
-    "00  "
-    "00  "
-    "    "
-    "    ", "00  "
-            "00  "
-            "    "
-            "    ", "00  "
-                    "00  "
-                    "    "
-                    "    ", "00  "
-                            "00  "
-                            "    "
-                            "    "
-  },
-  {
-    "0   "
-    "0   "
-    "0   "
-    "0   ", "0000"
-            "    "
-            "    "
-            "    ", "0   "
-                    "0   "
-                    "0   "
-                    "0   ", "0000"
-                            "    "
-                            "    "
-                            "    "
-  },
-  {
-    "000 "
-    " 0  "
-    "    "
-    "    ", "0   "
-            "00  "
-            "0   "
-            "    ", " 0  "
-                    "000 "
-                    "    "
-                    "    ", " 0  "
-                            "00  "
-                            " 0  "
-                            "    "
-  },
-  {
-    " 00 "
-    "00  "
-    "    "
-    "    ", "0   "
-            "00  "
-            " 0  "
-            "    ", " 00 "
-                    "00  "
-                    "    "
-                    "    ", "0   "
-                            "00  "
-                            " 0  "
-                            "    "
-  },
-  {
-    "00  "
-    " 00 "
-    "    "
-    "    ", " 0  "
-            "00  "
-            "0   "
-            "    ", "00  "
-                    " 00 "
-                    "    "
-                    "    ", " 0  "
-                            "00  "
-                            "0   "
-                            "    "
-  },
-  {
-    "0   "
-    "000 "
-    "    "
-    "    ", " 0  "
-            " 0  "
-            "00  "
-            "    ", "000 "
-                    "  0 "
-                    "    "
-                    "    ", "00  "
-                            "0   "
-                            "0   "
-                            "    "
-  },
-  {
-    "  0 "
-    "000 "
-    "    "
-    "    ", "00  "
-            " 0  "
-            " 0  "
-            "    ", "000 "
-                    "0   "
-                    "    "
-                    "    ", "0   "
-                            "0   "
-                            "00  "
-                            "    "
-  },
+  Shape("00  "
+        "00  "
+        "    "
+        "    "),
 
+  Shape("0   "
+        "0   "
+        "0   "
+        "0   "),
+
+  Shape("000 "
+        " 0  "
+        "    "
+        "    "),
+
+  Shape(" 00 "
+        "00  "
+        "    "
+        "    "),
+
+  Shape("00  "
+        " 00 "
+        "    "
+        "    "),
+
+  Shape("0   "
+        "000 "
+        "    "
+        "    "),
+
+  Shape("  0 "
+        "000 "
+        "    "
+        "    ")
 }};
 
 class Game
 {
 public:
-  void execute(int scale, std::string_view currentName, bool help);
+  void execute(int scale, std::string currentName, bool help);
 
 private:
   struct Falling
   {
-    const Figure *fig;
+    const Shape *shape;
     int col, v, y, x;
   };
 
@@ -169,6 +121,7 @@ private:
   void loop();
   void render();
   void renderTextInCenter(std::string_view text, int scale);
+  bool promptName(std::string &name);
   void showScoreboard(std::string_view currentName);
   
   void delay(int factor);
@@ -198,8 +151,7 @@ namespace
   {
     return event.type == SDL_QUIT
         || event.type == SDL_KEYDOWN
-          && ( event.key.keysym.sym == SDLK_q
-            || event.key.keysym.sym == SDLK_ESCAPE);
+          && event.key.keysym.sym == SDLK_ESCAPE;
   }
 }
 
@@ -209,8 +161,8 @@ void Game::spawn()
 
   falling_ = fallingNext_;
 
-  fallingNext_.fig = &g_figures[r % NFIGURES];
-  r /= NFIGURES;
+  fallingNext_.shape = &g_shapes[r % NSHAPES];
+  r /= NSHAPES;
 
   fallingNext_.col = 1 + r % NCOLORS;
   r /= NCOLORS;
@@ -273,14 +225,14 @@ void Game::skip()
 
 void Game::land()
 {
-  auto fig = getFig(falling_);
+  auto shape = getFig(falling_);
 
   for(int yRel = 0; yRel < 4; yRel++)
     for(int xRel = 0; xRel < 4; xRel++)
-      if(fig[yRel][xRel])
+      if(shape[yRel][xRel])
         cell_[falling_.y + yRel][falling_.x + xRel] = falling_.col;
   
-  falling_.fig = nullptr;
+  falling_.shape = nullptr;
 }
 
 void Game::reduce()
@@ -317,11 +269,11 @@ void Game::reduce()
 
 bool Game::collides()
 {
-  auto fig = getFig(falling_);
+  auto shape = getFig(falling_);
 
   for(int yRel = 0; yRel < 4; yRel++)
     for(int xRel = 0; xRel < 4; xRel++)
-      if(fig[yRel][xRel])
+      if(shape[yRel][xRel])
         if(auto y = falling_.y + yRel, x = falling_.x + xRel; y >= 16 || x >= 8 || cell_[y][x])
           return true;
 
@@ -330,8 +282,8 @@ bool Game::collides()
 
 const bool (*Game::getFig(Falling &falling))[4]
 {
-  if(falling.fig)
-    return falling.fig->views[falling.v];
+  if(falling.shape)
+    return falling.shape->views[falling.v];
   else
     return nullptr;
 }
@@ -467,10 +419,10 @@ void Game::render()
 
   auto renderFalling = [&](Falling &falling, int x, int y)
   {
-    if(auto fig = getFig(falling))
+    if(auto shape = getFig(falling))
       for(int yRel = 0; yRel < 4; yRel++)
         for(int xRel = 0; xRel < 4; xRel++)
-          if(fig[yRel][xRel])
+          if(shape[yRel][xRel])
             renderCell(x + xRel, y + yRel, falling.col);
   };
 
@@ -531,7 +483,7 @@ namespace
       std::string res;
 
       for(auto c : name)
-        if(isalpha(c))
+        if(isalpha(c) || isdigit(c))
           res += char(toupper(c));
       
       return res.substr(0, length);
@@ -593,20 +545,85 @@ namespace
   }
 }
 
+bool Game::promptName(std::string &name)
+{
+  auto wxy = sdl_.withBaseXY({scale_ * 8, scale_ * 8});
+
+  auto render = [&]
+  {
+    sdl_.setColor(Sdl::BLACK);
+    sdl_.clear();
+    
+    sdl_.setColor(Sdl::WHITE);
+
+    renderText("YOUR NAME:", {.sdl = sdl_,
+                              .font = font_,
+                              .scale = scale_ * 2});
+
+    renderText(name, {.sdl = sdl_,
+                      .font = font_,
+                      .scale = scale_ * 2,
+                      .skipRows = 1});
+
+    sdl_.present();
+  };
+
+  render();
+
+  bool isEntered = false;
+
+  SDL_StartTextInput();
+
+  while(sdl_.wait())
+  {
+    if(isQuitEvent(sdl_.event()))
+      break;
+
+    if(sdl_.event().type == SDL_TEXTINPUT)
+    {
+      auto input = std::string_view(sdl_.event().text.text);
+
+      if(input.size() == 1 && name.size() < 10)
+      {
+        name += char(toupper(input[0]));
+        render();
+      }
+    }
+    else if(sdl_.event().type == SDL_KEYDOWN)
+    {
+      if(sdl_.event().key.keysym.sym == SDLK_RETURN)
+      {
+        isEntered = true;
+        break;
+      }
+
+      if(sdl_.event().key.keysym.sym == SDLK_BACKSPACE && !name.empty())
+      {
+        name.pop_back();
+        render();
+      }
+    }
+  }
+
+  SDL_StopTextInput();
+
+  return isEntered;
+}
+
 void Game::showScoreboard(std::string_view currentName)
 {
+  auto wxy = sdl_.withBaseXY({scale_ * 8, scale_ * 8});
+
   auto scoreboard = readScoreboardFromFile("scoreboard");
+  
+  auto out = std::ofstream("scoreboard", std::ios::trunc);
   
   auto currentNameFixed = prepareNameForScoreboard(currentName, 10);
 
   insertToScoreboard(scoreboard, currentNameFixed, score_);
-  
-  auto out = std::ofstream("scoreboard", std::ios::trunc);
 
   sdl_.setColor(Sdl::BLACK);
   sdl_.clear();
-
-  sdl_.setBaseXY({scale_ * 8, scale_ * 8});
 
   for(int i = 0; i < scoreboard.size(); ++i)
   {
@@ -622,20 +639,18 @@ void Game::showScoreboard(std::string_view currentName)
     renderText(line, {.sdl = sdl_,
                       .font = font_,
                       .scale = scale_ * 2,
-                      .skipLines = i});
+                      .skipRows = i});
   }
   
   sdl_.setColor(Sdl::WHITE);
   renderText(dumpScoreboardLine(currentNameFixed, score_, 10, 5), {.sdl = sdl_,
                                                                    .font = font_,
                                                                    .scale = scale_ * 2,
-                                                                   .skipLines = 14});
+                                                                   .skipRows = 14});
 
   sdl_.present();
   
   do sdl_.wait(); while(!isQuitEvent(sdl_.event()));
-
-  std::cout << "SCORE: " << score_ << '\n';
 }
 
 void Game::delay(int factor)
@@ -643,7 +658,7 @@ void Game::delay(int factor)
   std::this_thread::sleep_for(std::chrono::milliseconds(factor * 50));
 }
 
-void Game::execute(int scale, std::string_view currentName, bool help)
+void Game::execute(int scale, std::string currentName, bool help)
 {
   init(scale);
 
@@ -672,8 +687,17 @@ void Game::execute(int scale, std::string_view currentName, bool help)
     
     delay(1);
   }
+
+  if(sdl_.event().type == SDL_QUIT)
+    return;
+
+  if(currentName.empty())
+    if(!promptName(currentName))
+      return;
   
   showScoreboard(currentName);
+
+  std::cout << "SCORE: " << score_ << '\n';
 }
 
 int main(int argc, char **argv)
@@ -682,6 +706,6 @@ int main(int argc, char **argv)
                          {"n", "name"}}, {{"h", "help"}});
 
   Game().execute(args.getIntO("scale").value_or(1),
-                 args.getO("name").value_or(""),
+                 args.getStrO("name").value_or(""),
                  args.is("help"));
 }

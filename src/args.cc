@@ -135,6 +135,19 @@ int Args::getInt(std::string_view name) const
   return str2num<int>(get(name));
 }
 
+std::optional<std::string> Args::getStrO(std::string_view name) const
+{
+  if(auto val = getO(name))
+    return {std::string(*val)};
+  else
+    return {};
+}
+
+std::string Args::getStr(std::string_view name) const
+{
+  return std::string(get(name));
+}
+
 bool Args::is(std::string_view name) const
 {
   return flags_.contains(name);
