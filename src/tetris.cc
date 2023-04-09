@@ -121,7 +121,7 @@ private:
   void land();
   void reduce();
   bool collides();
-  const bool (*getFig(Falling &falling))[4];
+  const bool (*getShape(Falling &falling))[4];
 
   void showHelp();
   void promptDifficulty();
@@ -310,7 +310,7 @@ void Game::skip()
 
 void Game::land()
 {
-  auto shape = getFig(falling_);
+  auto shape = getShape(falling_);
 
   for(int yRel = 0; yRel < 4; yRel++)
     for(int xRel = 0; xRel < 4; xRel++)
@@ -354,7 +354,7 @@ void Game::reduce()
 
 bool Game::collides()
 {
-  auto shape = getFig(falling_);
+  auto shape = getShape(falling_);
 
   for(int yRel = 0; yRel < 4; yRel++)
     for(int xRel = 0; xRel < 4; xRel++)
@@ -365,7 +365,7 @@ bool Game::collides()
   return false;
 }
 
-const bool (*Game::getFig(Falling &falling))[4]
+const bool (*Game::getShape(Falling &falling))[4]
 {
   if(falling.shape)
     return falling.shape->views[falling.v];
@@ -576,7 +576,7 @@ void Game::render()
 
   auto renderFalling = [&](Falling &falling, int x, int y)
   {
-    if(auto shape = getFig(falling))
+    if(auto shape = getShape(falling))
       for(int yRel = 0; yRel < 4; yRel++)
         for(int xRel = 0; xRel < 4; xRel++)
           if(shape[yRel][xRel])
