@@ -47,6 +47,9 @@ void Sdl::Context::init(const char *title, int w, int h)
   renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED);
   
   initialized_ = true;
+
+  wid_ = w;
+  hei_ = h;
 }
 
 Sdl::Context::~Context()

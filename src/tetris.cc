@@ -17,6 +17,10 @@
 
 static constexpr auto NSHAPES = 7;
 static constexpr auto NCOLORS = 6;
+static constexpr auto GAMEWID = 10;
+static constexpr auto GAMEHEI = 20;
+static constexpr auto NAMELIMIT = 12;
+static constexpr auto SCOREBOARDLIMIT = 18;
 
 struct Shape
 {
@@ -132,7 +136,7 @@ private:
 
   int scale_, cellSize_;
 
-  uint8_t cell_[16][8] = {};
+  uint8_t cell_[GAMEHEI][GAMEWID] = {};
 
   Falling falling_, fallingNext_;
 
@@ -171,7 +175,7 @@ void Game::spawn()
   r /= 4;
 
   fallingNext_.y = 0;
-  fallingNext_.x = 2;
+  fallingNext_.x = 4;
 }
 
 void Game::moveLeft()
@@ -242,8 +246,8 @@ void Game::reduce()
   std::vector<int> fullRows;
   fullRows.reserve(4);
 
-  for(int i = 0; i < 16; i++)
-    if(std::all_of(&cell_[i][0], &cell_[i][8], std::identity()))
+  for(int i = 0; i < GAMEHEI; i++)
+    if(std::all_of(&cell_[i][0], &cell_[i][GAMEWID], std::identity()))
       fullRows.push_back(i);
 
   if(fullRows.empty())
@@ -274,7 +278,7 @@ bool Game::collides()
   for(int yRel = 0; yRel < 4; yRel++)
     for(int xRel = 0; xRel < 4; xRel++)
       if(shape[yRel][xRel])
-        if(auto y = falling_.y + yRel, x = falling_.x + xRel; y >= 16 || x >= 8 || cell_[y][x])
+        if(auto y = falling_.y + yRel, x = falling_.x + xRel; y >= GAMEHEI || x >= GAMEWID || cell_[y][x])
           return true;
 
   return false;
@@ -293,7 +297,7 @@ void Game::init(int scale)
   scale_ = scale;
   cellSize_ = scale * 16;
 
-  sdl_.init("tetris", (8 + 1 + 4) * cellSize_, 16 * cellSize_);
+  sdl_.init("tetris", (GAMEWID + 1 + 4) * cellSize_, GAMEHEI * cellSize_);
   readFontFromFile(font_, "68.font");
 
   srand(time(NULL));
@@ -431,17 +435,17 @@ void Game::render()
             renderCell(x + xRel, y + yRel, falling.col);
   };
 
-  for(int y = 0; y < 16; y++)
-    for(int x = 0; x < 8; x++)
+  for(int y = 0; y < GAMEHEI; y++)
+    for(int x = 0; x < GAMEWID; x++)
       if(auto col = cell_[y][x])
         renderCell(x, y, col);
 
   sdl_.withColor(Sdl::GRAY)
-      ->withBaseXY({cellSize_ * 8, 0})
-      ->fillRect(0, 0, cellSize_ / 2, cellSize_ * 16);
+      ->withBaseXY({cellSize_ * GAMEWID, 0})
+      ->fillRect(0, 0, cellSize_ / 2, cellSize_ * GAMEHEI);
 
   renderFalling(falling_, falling_.x, falling_.y);
-  renderFalling(fallingNext_, 9, 0);
+  renderFalling(fallingNext_, GAMEWID + 1, 0);
   
   auto scoreStr = std::to_string(score_);
   if(scoreStr.size() < 5)
@@ -449,7 +453,7 @@ void Game::render()
 
 
   {
-    auto wxy = sdl_.withBaseXY({9 * cellSize_, 14 * cellSize_});
+    auto wxy = sdl_.withBaseXY({(GAMEWID + 1) * cellSize_, (GAMEHEI - 2) * cellSize_});
     auto wcl = sdl_.withColor(Sdl::WHITE);
     renderText(scoreStr, {.sdl = sdl_,
                           .font = font_,
@@ -459,29 +463,109 @@ void Game::render()
 
 void Game::renderTextInCenter(std::string_view text, int scale)
 {
-  auto resultScale = scale_ * scale;
-  auto centerPos = Sdl::XY{cellSize_ * 4, cellSize_ * 8};
+  auto rp = TextRenderParams{
+    .sdl = sdl_,
+    .font = font_,
+    .scale = scale_ * scale};
 
+  auto pp = TextPositionParams{
+    .pos = {cellSize_ * GAMEWID / 2, cellSize_ * GAMEHEI / 2},
+    .hAlign = HAlign::Center,
+    .vAlign = VAlign::Center};
+
+  auto resultScale = scale_ * scale;
+  auto centerPos = Sdl::XY{cellSize_ * GAMEWID / 2, cellSize_ * GAMEHEI / 2};
+
+  rp.pixelOverlap = 1.;
   {
     auto wcl = sdl_.withColor(Sdl::BLACK);
-    renderTextAt(text, {.sdl = sdl_,
-                        .font = font_,
-                        .scale = resultScale,
-                        .pixelOverlap = 1.}, centerPos, true);
+    renderTextAt(text, rp, pp);
   }
+
+  rp.pixelOverlap = 0.;
   {
     auto wcl = sdl_.withColor(Sdl::WHITE);
-    renderTextAt(text, {.sdl = sdl_,
-                        .font = font_,
-                        .scale = resultScale}, centerPos, true);
+    renderTextAt(text, rp, pp);
   }
+}
+
+bool Game::promptName(std::string &name)
+{
+  auto wxy = sdl_.withBaseXY({scale_ * 8, scale_ * 8});
+
+  auto renderPrompt = [&]
+  {
+    sdl_.setColor(Sdl::BLACK);
+    sdl_.clear();
+    
+    sdl_.setColor(Sdl::gray(128));
+
+    renderText("YOUR NAME:", {.sdl = sdl_,
+                              .font = font_,
+                              .scale = scale_ * 2});
+
+    sdl_.setColor(Sdl::WHITE);
+
+    renderText(name, {.sdl = sdl_,
+                      .font = font_,
+                      .scale = scale_ * 2,
+                      .skipRows = 1});
+
+    sdl_.present();
+  };
+
+  renderPrompt();
+
+  bool isEntered = false;
+
+  SDL_StartTextInput();
+
+  while(sdl_.wait())
+  {
+    if(isQuitEvent(sdl_.event()))
+      break;
+
+    if(sdl_.event().type == SDL_TEXTINPUT)
+    {
+      auto input = std::string_view(sdl_.event().text.text);
+
+      if(input.size() == 1 && name.size() < NAMELIMIT)
+      {
+        auto ch = input[0];
+
+        if(isalpha(ch) || isdigit(ch))
+        {
+          name += char(toupper(ch));
+          renderPrompt();
+        }
+      }
+    }
+    else if(sdl_.event().type == SDL_KEYDOWN)
+    {
+      if(sdl_.event().key.keysym.sym == SDLK_RETURN)
+      {
+        isEntered = true;
+        break;
+      }
+
+      if(sdl_.event().key.keysym.sym == SDLK_BACKSPACE && !name.empty())
+      {
+        name.pop_back();
+        renderPrompt();
+      }
+    }
+  }
+
+  SDL_StopTextInput();
+
+  return isEntered;
 }
 
 namespace
 {
   using Scoreboard = std::vector<std::pair<std::string, int>>;
 
-  std::string prepareNameForScoreboard(std::string_view name, int length)
+  std::string prepareNameForScoreboard(std::string_view name)
   {
     if(!name.empty())
     {
@@ -491,7 +575,7 @@ namespace
         if(isalpha(c) || isdigit(c))
           res += char(toupper(c));
       
-      return res.substr(0, length);
+      return res.substr(0, NAMELIMIT);
     }
     else
     {
@@ -538,8 +622,8 @@ namespace
     
     std::ranges::sort(scoreboard, std::ranges::greater(), &std::pair<std::string,int>::second);
     
-    if(scoreboard.size() > 14)
-      scoreboard.resize(14);
+    if(scoreboard.size() > SCOREBOARDLIMIT)
+      scoreboard.resize(SCOREBOARDLIMIT);
   }
   
   std::string dumpScoreboardLine(const std::string &name, int score, int nameLen, int scoreLen)
@@ -550,85 +634,41 @@ namespace
   }
 }
 
-bool Game::promptName(std::string &name)
-{
-  auto wxy = sdl_.withBaseXY({scale_ * 8, scale_ * 8});
-
-  auto render = [&]
-  {
-    sdl_.setColor(Sdl::BLACK);
-    sdl_.clear();
-    
-    sdl_.setColor(Sdl::WHITE);
-
-    renderText("YOUR NAME:", {.sdl = sdl_,
-                              .font = font_,
-                              .scale = scale_ * 2});
-
-    renderText(name, {.sdl = sdl_,
-                      .font = font_,
-                      .scale = scale_ * 2,
-                      .skipRows = 1});
-
-    sdl_.present();
-  };
-
-  render();
-
-  bool isEntered = false;
-
-  SDL_StartTextInput();
-
-  while(sdl_.wait())
-  {
-    if(isQuitEvent(sdl_.event()))
-      break;
-
-    if(sdl_.event().type == SDL_TEXTINPUT)
-    {
-      auto input = std::string_view(sdl_.event().text.text);
-
-      if(input.size() == 1 && name.size() < 10)
-      {
-        auto ch = input[0];
-
-        if(isalpha(ch) || isdigit(ch))
-        {
-          name += char(toupper(ch));
-          render();
-        }
-      }
-    }
-    else if(sdl_.event().type == SDL_KEYDOWN)
-    {
-      if(sdl_.event().key.keysym.sym == SDLK_RETURN)
-      {
-        isEntered = true;
-        break;
-      }
-
-      if(sdl_.event().key.keysym.sym == SDLK_BACKSPACE && !name.empty())
-      {
-        name.pop_back();
-        render();
-      }
-    }
-  }
-
-  SDL_StopTextInput();
-
-  return isEntered;
-}
-
 void Game::showScoreboard(std::string_view currentName)
 {
-  auto wxy = sdl_.withBaseXY({scale_ * 8, scale_ * 8});
+  auto trp = TextRenderParams{
+    .sdl = sdl_,
+    .font = font_,
+    .scale = scale_ * 2};
+
+  auto halfFontWid = font_.wid() * trp.scale / 2;
+  auto halfFontHei = font_.hei() * trp.scale / 2;
+
+  auto tppNames = TextPositionParams{
+    .pos = {halfFontWid, halfFontHei},
+    .hAlign = HAlign::Left,
+    .vAlign = VAlign::Up};
+
+  auto tppScores = TextPositionParams{
+    .pos = {sdl_.wid() - halfFontWid, halfFontHei},
+    .hAlign = HAlign::Right,
+    .vAlign = VAlign::Up};
+
+  auto tppYourName = TextPositionParams{
+    .pos = {halfFontWid, sdl_.hei() - halfFontHei},
+    .hAlign = HAlign::Left,
+    .vAlign = VAlign::Down};
+
+  auto tppYourScore = TextPositionParams{
+    .pos = {sdl_.wid() - halfFontWid, sdl_.hei() - halfFontHei},
+    .hAlign = HAlign::Right,
+    .vAlign = VAlign::Down};
 
   auto scoreboard = readScoreboardFromFile("scoreboard");
   
   auto out = std::ofstream("scoreboard", std::ios::trunc);
   
-  auto currentNameFixed = prepareNameForScoreboard(currentName, 10);
+  auto currentNameFixed = prepareNameForScoreboard(currentName);
 
   insertToScoreboard(scoreboard, currentNameFixed, score_);
 
@@ -641,22 +681,20 @@ void Game::showScoreboard(std::string_view currentName)
 
     auto isSelf = name == currentNameFixed;
 
-    auto line = dumpScoreboardLine(name, score, 10, 5);
+    out << name << ' ' << score << '\n';
 
-    out << line;
+    sdl_.setColor((name == currentNameFixed) ? Sdl::gray(192) : Sdl::gray(128));
 
-    sdl_.setColor(isSelf ? Sdl::gray(192) : Sdl::gray(128));
-    renderText(line, {.sdl = sdl_,
-                      .font = font_,
-                      .scale = scale_ * 2,
-                      .skipRows = i});
+    trp.skipRows = i;
+    renderTextAt(name, trp, tppNames);
+    renderTextAt(std::to_string(score), trp, tppScores);
   }
   
   sdl_.setColor(Sdl::WHITE);
-  renderText(dumpScoreboardLine(currentNameFixed, score_, 10, 5), {.sdl = sdl_,
-                                                                   .font = font_,
-                                                                   .scale = scale_ * 2,
-                                                                   .skipRows = 14});
+
+  trp.skipRows = 0;
+  renderTextAt(currentNameFixed, trp, tppYourName);
+  renderTextAt(std::to_string(score_), trp, tppYourScore);
 
   sdl_.present();
   

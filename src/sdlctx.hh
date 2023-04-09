@@ -63,6 +63,9 @@ namespace Sdl
     SDL_Window *window() { return window_; }
     SDL_Renderer *renderer() { return renderer_; }
 
+    int wid() const { return wid_; }
+    int hei() const { return hei_; }
+
   private:
     SDL_Window *window_ = nullptr; 
     SDL_Renderer *renderer_ = nullptr;
@@ -72,5 +75,7 @@ namespace Sdl
     bool initialized_ = false;
     
     int baseX_ = 0, baseY_ = 0;
+
+    int wid_, hei_;
   };
 }

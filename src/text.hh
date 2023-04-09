@@ -4,7 +4,10 @@
 #include "sdlctx.hh"
 #include "font.hh"
 
-struct RenderTextParams
+enum class HAlign { Left, Right, Center };
+enum class VAlign { Up, Down, Center };
+
+struct TextRenderParams
 {
   Sdl::Context &sdl;
   Font &font;
@@ -14,7 +17,14 @@ struct RenderTextParams
   float pixelOverlap = 0.;
 };
 
-void renderText(std::string_view text, RenderTextParams p);
-void renderTextAt(std::string_view text, RenderTextParams p, Sdl::XY pos, bool center = false);
+struct TextPositionParams
+{
+  Sdl::XY pos = {0, 0};
+  HAlign hAlign = HAlign::Left;
+  VAlign vAlign = VAlign::Up;
+};
+
+void renderText(std::string_view text, TextRenderParams p);
+void renderTextAt(std::string_view text, TextRenderParams rp, TextPositionParams pp);
 
 std::pair<size_t, size_t> getNumRowsAndCols(std::string_view str);

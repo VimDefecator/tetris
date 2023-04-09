@@ -1,7 +1,7 @@
 #include "text.hh"
 #include <cctype>
 
-void renderText(std::string_view text, RenderTextParams p)
+void renderText(std::string_view text, TextRenderParams p)
 {
   int row = p.skipRows, col = p.skipCols;
 
@@ -29,21 +29,29 @@ void renderText(std::string_view text, RenderTextParams p)
   }
 }
 
-void renderTextAt(std::string_view text, RenderTextParams p, Sdl::XY pos, bool center/* = false*/)
+void renderTextAt(std::string_view text, TextRenderParams rp, TextPositionParams pp)
 {
-  if(center)
+  auto [numRows, numCols] = getNumRowsAndCols(text);
+  auto resWid = (numCols + rp.skipCols) * rp.font.wid() * rp.scale;
+  auto resHei = (numRows + rp.skipRows) * rp.font.hei() * rp.scale;
+
+  switch(pp.hAlign)
   {
-    auto [numRows, numCols] = getNumRowsAndCols(text);
-
-    auto resWid = (numCols + p.skipCols) * p.font.wid() * p.scale;
-    auto resHei = (numRows + p.skipRows) * p.font.hei() * p.scale;
-
-    pos -= Sdl::XY{int(resWid / 2), int(resHei / 2)};
+    case HAlign::Left: break;
+    case HAlign::Right: pp.pos.x -= resWid; break;
+    case HAlign::Center: pp.pos.x -= resWid / 2; break;
   }
 
-  auto wxy = p.sdl.withBaseXY(pos);
+  switch(pp.vAlign)
+  {
+    case VAlign::Up: break;
+    case VAlign::Down: pp.pos.y -= resHei; break;
+    case VAlign::Center: pp.pos.y -= resHei / 2; break;
+  }
 
-  renderText(text, p);
+  auto wxy = rp.sdl.withBaseXY(pp.pos);
+
+  renderText(text, rp);
 }
 
 std::pair<size_t, size_t> getNumRowsAndCols(std::string_view str)
