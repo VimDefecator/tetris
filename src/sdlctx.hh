@@ -9,21 +9,64 @@ namespace Sdl
   struct Color
   {
     Uint8 r, g, b;
+
+    Color operator/(int d) const
+    {
+      auto tmp = *this;
+      tmp /= d;
+      return tmp;
+    }
+
+    Color &operator/=(int d)
+    {
+      r /= d;
+      g /= d;
+      b /= d;
+      return *this;
+    }
   };
   struct XY
   {
     int x, y;
 
-    XY operator+(XY other) { return {x + other.x, y + other.y}; }
-    XY operator-(XY other) { return {x - other.x, y - other.y}; }
+    XY operator+(XY other) const
+    {
+      auto tmp = *this;
+      tmp += other;
+      return tmp;
+    }
 
-    XY &operator+=(XY other) { x += other.x; y += other.y; return *this; }
-    XY &operator-=(XY other) { x -= other.x; y -= other.y; return *this; }
+    XY operator-(XY other) const
+    {
+      auto tmp = *this;
+      tmp -= other;
+      return tmp;
+    }
+
+    XY &operator+=(XY other)
+    {
+      x += other.x;
+      y += other.y;
+      return *this;
+    }
+
+    XY &operator-=(XY other)
+    {
+      x -= other.x;
+      y -= other.y;
+      return *this;
+    }
   };
   
   extern const Color BLACK, WHITE, GRAY, RED, GREEN, BLUE, YELLOW, MAGENTA, CYAN;
   
-  Color gray(Uint8 bri);
+  inline Color gray     (Uint8 bri) { return {bri, bri, bri}; }
+  inline Color red      (Uint8 bri) { return {bri,   0,   0}; }
+  inline Color green    (Uint8 bri) { return {  0, bri,   0}; }
+  inline Color blue     (Uint8 bri) { return {  0,   0, bri}; }
+  inline Color yellow   (Uint8 bri) { return {bri, bri,   0}; }
+  inline Color magenta  (Uint8 bri) { return {bri,   0, bri}; }
+  inline Color cyan     (Uint8 bri) { return {  0, bri, bri}; }
 
   class Context
   {

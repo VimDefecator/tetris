@@ -19,9 +19,10 @@ static constexpr auto NSHAPES = 7;
 static constexpr auto NCOLORS = 6;
 static constexpr auto GAMEWID = 10;
 static constexpr auto GAMEHEI = 20;
+static constexpr auto CELLSIZE = 16;
 static constexpr auto NAMELIMIT = 12;
 static constexpr auto SCOREBOARDLIMIT = 18;
-static constexpr auto CELLSIZE = 16;
+static constexpr auto DIFFICULTYLIMIT = 10;
 
 struct Shape
 {
@@ -101,7 +102,7 @@ static const std::array<Shape, NSHAPES> g_shapes
 class Game
 {
 public:
-  void execute(int scale, std::string currentName, bool help);
+  void execute(int difficulty, int scale, std::string currentName, bool help);
 
 private:
   struct Falling
@@ -122,6 +123,7 @@ private:
 
   void init(int scale);
   void showHelp();
+  void promptDifficulty();
   void handleEvent(const SDL_Event &event);
   void loop();
   void render();
@@ -138,6 +140,8 @@ private:
   uint8_t cell_[GAMEHEI][GAMEWID] = {};
 
   Falling falling_, fallingNext_;
+
+  int difficulty_, clockPeriod_;
 
   int clock_ = 0;
 
@@ -255,10 +259,10 @@ void Game::reduce()
   for(auto i : fullRows)
     memset(cell_[i], 0, sizeof(cell_[i]));
 
-  auto dscore = fullRows.size() * fullRows.size();
+  auto dscore = fullRows.size() * fullRows.size() + difficulty_;
 
   score_ += dscore;
-  
+
   render();
   renderTextInCenter("+" + std::to_string(dscore), 8);
   sdl_.present();
@@ -319,6 +323,82 @@ void Game::showHelp()
   while(sdl_.wait(), sdl_.event().type != SDL_KEYDOWN && sdl_.event().type != SDL_QUIT);
   
   quit_ = isQuitEvent(sdl_.event());
+}
+
+void Game::promptDifficulty()
+{
+  difficulty_ = 0;
+
+  auto stepWid = sdl_.wid() / DIFFICULTYLIMIT;
+  auto stepHei = sdl_.hei() / DIFFICULTYLIMIT;
+
+  auto renderDifficulty = [&]
+  {
+    sdl_.setColor(Sdl::BLACK);
+    sdl_.clear();
+
+    for(int step = 0; step <= difficulty_; step++)
+    {
+      Sdl::Color col;
+      col.r = step * 255 / (DIFFICULTYLIMIT - 1);
+      col.g = 255 - col.r;
+      col.b = 0;
+
+      sdl_.setColor(col);
+
+      sdl_.fillRect(step * stepWid + 1,
+                    (DIFFICULTYLIMIT - 1 - step) * stepHei + 1,
+                    stepWid - 2,
+                    (step + 1) * stepHei - 2);
+    };
+
+    auto difficultyStr = std::to_string(difficulty_);
+    {
+      auto wcl = sdl_.withColor(sdl_.getColor() / 2);
+      renderTextAt(difficultyStr, {.sdl = sdl_, .font = font_, .scale = 8, .pixelOverlap = 1.}, {.pos = {8, 8}});
+    }
+    renderTextAt(difficultyStr, {.sdl = sdl_, .font = font_, .scale = 8}, {.pos = {8, 8}});
+
+    sdl_.present();
+  };
+
+  renderDifficulty();
+
+  while(sdl_.wait(), !isQuitEvent(sdl_.event()))
+  {
+    if(sdl_.event().type == SDL_KEYDOWN)
+    {
+      switch(sdl_.event().key.keysym.sym)
+      {
+        case SDLK_LEFT:
+        case SDLK_DOWN:
+          if(difficulty_ > 0)
+          {
+            --difficulty_;
+            renderDifficulty();
+          }
+        break;
+
+        case SDLK_RIGHT:
+        case SDLK_UP:
+          if(difficulty_ < DIFFICULTYLIMIT - 1)
+          {
+            ++difficulty_;
+            renderDifficulty();
+          }
+        break;
+
+        case SDLK_RETURN:
+          return;
+        break;
+
+        default:
+        break;
+      }
+    }
+  }
+
+  quit_ = true;
 }
 
 void Game::handleEvent(const SDL_Event &event)
@@ -388,7 +468,7 @@ void Game::loop()
     update_ = true;
   }
 
-  clock_ = (clock_ + 1) % 10;
+  clock_ = (clock_ + 1) % clockPeriod_;
 }
 
 void Game::render()
@@ -696,12 +776,25 @@ void Game::delay(int factor)
   std::this_thread::sleep_for(std::chrono::milliseconds(factor * 50));
 }
 
-void Game::execute(int scale, std::string currentName, bool help)
+void Game::execute(int difficulty, int scale, std::string currentName, bool help)
 {
   init(scale);
 
   if(help)
     showHelp();
+
+  if(quit_)
+    return;
+
+  if(0 <= difficulty && difficulty < DIFFICULTYLIMIT)
+    difficulty_ = difficulty;
+  else
+    promptDifficulty();
+
+  if(quit_)
+    return;
+
+  clockPeriod_ = DIFFICULTYLIMIT - difficulty_;
 
   if(quit_)
     return;
@@ -740,10 +833,12 @@ void Game::execute(int scale, std::string currentName, bool help)
 
 int main(int argc, char **argv)
 {
-  Args args(argc, argv, {{"s", "scale"},
+  Args args(argc, argv, {{"d", "difficulty"},
+                         {"s", "scale"},
                          {"n", "name"}}, {{"h", "help"}});
 
-  Game().execute(args.getIntO("scale").value_or(1),
+  Game().execute(args.getIntO("difficulty").value_or(-1),
+                 args.getIntO("scale").value_or(1),
                  args.getStrO("name").value_or(""),
                  args.is("help"));
 }

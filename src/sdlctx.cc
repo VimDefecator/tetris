@@ -18,20 +18,15 @@ namespace
   }
 }
 
-const Sdl::Color Sdl::BLACK   = {  0,   0,   0},
-                 Sdl::WHITE   = {255, 255, 255},
-                 Sdl::GRAY    = fixLum(Sdl::Color{255, 255, 255}),
-                 Sdl::RED     = fixLum(Sdl::Color{255,   0,   0}),
-                 Sdl::GREEN   = fixLum(Sdl::Color{  0, 255,   0}),
-                 Sdl::BLUE    = fixLum(Sdl::Color{  0,   0, 255}),
-                 Sdl::YELLOW  = fixLum(Sdl::Color{255, 255,   0}),
-                 Sdl::MAGENTA = fixLum(Sdl::Color{255,   0, 255}),
-                 Sdl::CYAN    = fixLum(Sdl::Color{  0, 255, 255});
-
-Sdl::Color Sdl::gray(Uint8 bri)
-{
-  return {bri, bri, bri};
-}
+const Sdl::Color Sdl::BLACK   = Sdl::gray(0),
+                 Sdl::WHITE   = Sdl::gray(255),
+                 Sdl::GRAY    = fixLum(Sdl::gray(255)),
+                 Sdl::RED     = fixLum(Sdl::red(255)),
+                 Sdl::GREEN   = fixLum(Sdl::green(255)),
+                 Sdl::BLUE    = fixLum(Sdl::blue(255)),
+                 Sdl::YELLOW  = fixLum(Sdl::yellow(255)),
+                 Sdl::MAGENTA = fixLum(Sdl::magenta(255)),
+                 Sdl::CYAN    = fixLum(Sdl::cyan(255));
 
 void Sdl::Context::init(const char *title, int w, int h, int scale)
 {
