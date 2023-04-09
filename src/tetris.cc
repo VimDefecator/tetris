@@ -567,7 +567,7 @@ void Game::render()
   {
     auto col = idx2col(colIdx);
 
-    sdl_.setColor({Uint8(col.r/2), Uint8(col.g/2), Uint8(col.b/2)});
+    sdl_.setColor(col / 2);
     sdl_.pixArtPut(x, y, CELLSIZE, 0.875);
 
     sdl_.setColor(col);
