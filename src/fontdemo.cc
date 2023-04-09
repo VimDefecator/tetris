@@ -28,12 +28,12 @@ int main(int argc, char **argv)
   auto font = readFontFromFile(file.data());
 
   Sdl::Context sdl;
-  sdl.init(text.data(), scale * font.wid() * numCols, scale * font.hei() * numRows);
+  sdl.init(text.data(), font.wid() * numCols, font.hei() * numRows, scale);
   sdl.setColor(Sdl::BLACK);
   sdl.clear();
   
   sdl.setColor(Sdl::WHITE);
-  renderText(text, {.sdl = sdl, .font = font, .scale = scale});
+  renderText(text, {.sdl = sdl, .font = font});
   sdl.present();
   
   while(sdl.wait(), sdl.event().type != SDL_QUIT);

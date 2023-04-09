@@ -33,18 +33,21 @@ Sdl::Color Sdl::gray(Uint8 bri)
   return {bri, bri, bri};
 }
 
-void Sdl::Context::init(const char *title, int w, int h)
+void Sdl::Context::init(const char *title, int w, int h, int scale)
 {
   SDL_Init(SDL_INIT_EVERYTHING);
 
   window_ = SDL_CreateWindow(title,
                              SDL_WINDOWPOS_UNDEFINED,
                              SDL_WINDOWPOS_UNDEFINED,
-                             w,
-                             h,
+                             w * scale,
+                             h * scale,
                              SDL_WINDOW_OPENGL);
 
   renderer_ = SDL_CreateRenderer(window_, -1, SDL_RENDERER_ACCELERATED);
+
+  SDL_RenderSetScale(renderer_, scale, scale);
+  SDL_RenderSetIntegerScale(renderer_, SDL_TRUE);
   
   initialized_ = true;
 

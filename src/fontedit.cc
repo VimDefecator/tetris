@@ -38,13 +38,13 @@ void Edit::init(const Args &args)
   
   w_ = font_.wid();
   h_ = font_.hei();
-  s_ = args.getIntO("scale").value_or(1) * 4;
+  s_ = args.getIntO("scale").value_or(1);
 }
 
 void Edit::exec()
 {
   Sdl::Context sdl;
-  sdl.init("Font editor", w_ * s_, h_ * s_);
+  sdl.init("Font editor", w_ * 4, h_ * 4, s_);
   sdl.setColor(Sdl::WHITE);
   
   bool isEditMode = false;
@@ -57,10 +57,10 @@ void Edit::exec()
     for(int x = 0; x < w_; x++)
       for(int y = 0; y < h_; y++)
         if(font_[curCh][x][y])
-          sdl.pixArtPut(x, y, s_);
+          sdl.pixArtPut(x, y, 4);
     
     if(isEditMode)
-      sdl.withColor(Sdl::gray(128))->pixArtPut(curX, curY, s_, 0.5);
+      sdl.withColor(Sdl::gray(128))->pixArtPut(curX, curY, 4, 0.5);
     
     sdl.present();
   };

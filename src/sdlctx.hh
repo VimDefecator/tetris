@@ -31,7 +31,7 @@ namespace Sdl
     Context() = default;
     ~Context();
     
-    void init(const char *title, int w, int h);
+    void init(const char *title, int w, int h, int scale);
     
     Color getColor();
     void setColor(Color color);

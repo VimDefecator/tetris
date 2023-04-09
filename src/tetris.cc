@@ -21,6 +21,7 @@ static constexpr auto GAMEWID = 10;
 static constexpr auto GAMEHEI = 20;
 static constexpr auto NAMELIMIT = 12;
 static constexpr auto SCOREBOARDLIMIT = 18;
+static constexpr auto CELLSIZE = 16;
 
 struct Shape
 {
@@ -133,8 +134,6 @@ private:
 private:
   Sdl::Context sdl_;
   Font font_;
-
-  int scale_, cellSize_;
 
   uint8_t cell_[GAMEHEI][GAMEWID] = {};
 
@@ -294,10 +293,7 @@ const bool (*Game::getFig(Falling &falling))[4]
 
 void Game::init(int scale)
 {
-  scale_ = scale;
-  cellSize_ = scale * 16;
-
-  sdl_.init("tetris", (GAMEWID + 1 + 4) * cellSize_, GAMEHEI * cellSize_);
+  sdl_.init("tetris", (GAMEWID + 1 + 4) * CELLSIZE, GAMEHEI * CELLSIZE, scale);
   readFontFromFile(font_, "68.font");
 
   srand(time(NULL));
@@ -307,7 +303,7 @@ void Game::init(int scale)
 
 void Game::showHelp()
 {
-  auto wxy = sdl_.withBaseXY({scale_ * 4, scale_ * 4});
+  auto wxy = sdl_.withBaseXY({4, 4});
   auto wcl = sdl_.withColor(Sdl::WHITE);
 
   renderText("LEFT,RIGHT|MOVE\n"
@@ -316,7 +312,7 @@ void Game::showHelp()
              "SPACE     |PAUSE\n"
              "Q,ESC     |QUIT\n", {.sdl = sdl_,
                                    .font = font_,
-                                   .scale = scale_ * 2});
+                                   .scale = 2});
   
   sdl_.present();
 
@@ -420,10 +416,10 @@ void Game::render()
     auto col = idx2col(colIdx);
 
     sdl_.setColor({Uint8(col.r/2), Uint8(col.g/2), Uint8(col.b/2)});
-    sdl_.pixArtPut(x, y, cellSize_, 0.875);
+    sdl_.pixArtPut(x, y, CELLSIZE, 0.875);
 
     sdl_.setColor(col);
-    sdl_.pixArtPut(x, y, cellSize_, 0.750);
+    sdl_.pixArtPut(x, y, CELLSIZE, 0.750);
   };
 
   auto renderFalling = [&](Falling &falling, int x, int y)
@@ -441,24 +437,18 @@ void Game::render()
         renderCell(x, y, col);
 
   sdl_.withColor(Sdl::GRAY)
-      ->withBaseXY({cellSize_ * GAMEWID, 0})
-      ->fillRect(0, 0, cellSize_ / 2, cellSize_ * GAMEHEI);
+      ->withBaseXY({CELLSIZE * GAMEWID, 0})
+      ->fillRect(0, 0, CELLSIZE / 2, CELLSIZE * GAMEHEI);
 
   renderFalling(falling_, falling_.x, falling_.y);
   renderFalling(fallingNext_, GAMEWID + 1, 0);
   
-  auto scoreStr = std::to_string(score_);
-  if(scoreStr.size() < 5)
-    scoreStr = std::string(5 - scoreStr.size(), ' ') + scoreStr;
-
-
-  {
-    auto wxy = sdl_.withBaseXY({(GAMEWID + 1) * cellSize_, (GAMEHEI - 2) * cellSize_});
-    auto wcl = sdl_.withColor(Sdl::WHITE);
-    renderText(scoreStr, {.sdl = sdl_,
-                          .font = font_,
-                          .scale = scale_ * 2});
-  }
+  sdl_.setColor(Sdl::WHITE);
+  renderTextAt(std::to_string(score_), {.sdl = sdl_,
+                                        .font = font_,
+                                        .scale = 2}, {.pos = {sdl_.wid() - 3, sdl_.hei() - 4},
+                                                      .hAlign = HAlign::Right,
+                                                      .vAlign = VAlign::Down});
 }
 
 void Game::renderTextInCenter(std::string_view text, int scale)
@@ -466,15 +456,15 @@ void Game::renderTextInCenter(std::string_view text, int scale)
   auto rp = TextRenderParams{
     .sdl = sdl_,
     .font = font_,
-    .scale = scale_ * scale};
+    .scale = scale};
 
   auto pp = TextPositionParams{
-    .pos = {cellSize_ * GAMEWID / 2, cellSize_ * GAMEHEI / 2},
+    .pos = {CELLSIZE * GAMEWID / 2, CELLSIZE * GAMEHEI / 2},
     .hAlign = HAlign::Center,
     .vAlign = VAlign::Center};
 
-  auto resultScale = scale_ * scale;
-  auto centerPos = Sdl::XY{cellSize_ * GAMEWID / 2, cellSize_ * GAMEHEI / 2};
+  auto resultScale = scale;
+  auto centerPos = Sdl::XY{CELLSIZE * GAMEWID / 2, CELLSIZE * GAMEHEI / 2};
 
   rp.pixelOverlap = 1.;
   {
@@ -491,7 +481,7 @@ void Game::renderTextInCenter(std::string_view text, int scale)
 
 bool Game::promptName(std::string &name)
 {
-  auto wxy = sdl_.withBaseXY({scale_ * 8, scale_ * 8});
+  auto wxy = sdl_.withBaseXY({8, 8});
 
   auto renderPrompt = [&]
   {
@@ -502,13 +492,13 @@ bool Game::promptName(std::string &name)
 
     renderText("YOUR NAME:", {.sdl = sdl_,
                               .font = font_,
-                              .scale = scale_ * 2});
+                              .scale = 2});
 
     sdl_.setColor(Sdl::WHITE);
 
     renderText(name, {.sdl = sdl_,
                       .font = font_,
-                      .scale = scale_ * 2,
+                      .scale = 2,
                       .skipRows = 1});
 
     sdl_.present();
@@ -639,7 +629,7 @@ void Game::showScoreboard(std::string_view currentName)
   auto trp = TextRenderParams{
     .sdl = sdl_,
     .font = font_,
-    .scale = scale_ * 2};
+    .scale = 2};
 
   auto halfFontWid = font_.wid() * trp.scale / 2;
   auto halfFontHei = font_.hei() * trp.scale / 2;
