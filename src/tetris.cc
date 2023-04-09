@@ -102,7 +102,9 @@ static const std::array<Shape, NSHAPES> g_shapes
 class Game
 {
 public:
-  void execute(int difficulty, int scale, std::string currentName, bool help);
+  void init(int scale);
+  void execute(bool help);
+  bool finalize();
 
 private:
   struct Falling
@@ -121,15 +123,14 @@ private:
   bool collides();
   const bool (*getFig(Falling &falling))[4];
 
-  void init(int scale);
   void showHelp();
   void promptDifficulty();
   void handleEvent(const SDL_Event &event);
   void loop();
   void render();
   void renderTextInCenter(std::string_view text, int scale);
-  bool promptName(std::string &name);
-  void showScoreboard(std::string_view currentName);
+  bool promptName();
+  void showScoreboard();
   
   void delay(int factor);
 
@@ -137,19 +138,20 @@ private:
   Sdl::Context sdl_;
   Font font_;
 
-  uint8_t cell_[GAMEHEI][GAMEWID] = {};
+  uint8_t cell_[GAMEHEI][GAMEWID];
 
   Falling falling_, fallingNext_;
 
-  int difficulty_, clockPeriod_;
+  int difficulty_ = 0, clockPeriod_;
+  int clock_;
+  int score_;
 
-  int clock_ = 0;
+  bool started_;
+  bool update_;
+  bool pause_;
+  bool quit_;
 
-  int score_ = 0;
-
-  bool update_ = false;
-  bool pause_ = false;
-  bool quit_ = false;
+  std::string currentName_;
 };
 
 namespace
@@ -160,6 +162,82 @@ namespace
         || event.type == SDL_KEYDOWN
           && event.key.keysym.sym == SDLK_ESCAPE;
   }
+
+  bool isRetryEvent(const SDL_Event &event)
+  {
+    return event.type == SDL_KEYDOWN
+          && event.key.keysym.sym == SDLK_SPACE;
+  }
+}
+
+void Game::init(int scale)
+{
+  sdl_.init("tetris", (GAMEWID + 1 + 4) * CELLSIZE, GAMEHEI * CELLSIZE, scale);
+  readFontFromFile(font_, "68.font");
+  srand(time(NULL));
+}
+
+void Game::execute(bool help)
+{
+  clock_ = 0;
+  score_ = 0;
+
+  started_ = false;
+  update_ = true;
+  pause_ = false;
+  quit_ = false;
+
+  if(help)
+    showHelp();
+
+  if(quit_)
+    return;
+
+  promptDifficulty();
+
+  if(quit_)
+    return;
+
+  clockPeriod_ = DIFFICULTYLIMIT - difficulty_;
+
+  started_ = true;
+
+  memset(cell_, 0, sizeof(cell_));
+  spawn();
+  spawn();
+
+  while(true)
+  {
+    while(!quit_ && sdl_.poll())
+      handleEvent(sdl_.event());
+    
+    if(quit_)
+      break;
+
+    loop();
+
+    if(update_)
+    {
+      render();
+      sdl_.present();
+      update_ = false;
+    }
+    
+    delay(1);
+  }
+}
+
+bool Game::finalize()
+{
+  if(!started_ || sdl_.event().type == SDL_QUIT)
+    return true;
+
+  if(promptName())
+    showScoreboard();
+
+  std::cout << "SCORE: " << score_ << '\n';
+
+  return !isRetryEvent(sdl_.event());
 }
 
 void Game::spawn()
@@ -295,28 +373,24 @@ const bool (*Game::getFig(Falling &falling))[4]
     return nullptr;
 }
 
-void Game::init(int scale)
-{
-  sdl_.init("tetris", (GAMEWID + 1 + 4) * CELLSIZE, GAMEHEI * CELLSIZE, scale);
-  readFontFromFile(font_, "68.font");
-
-  srand(time(NULL));
-  spawn();
-  spawn();
-}
-
 void Game::showHelp()
 {
-  auto wxy = sdl_.withBaseXY({4, 4});
+  auto wxy = sdl_.withBaseXY({font_.wid(), font_.hei()});
   auto wcl = sdl_.withColor(Sdl::WHITE);
 
-  renderText("LEFT,RIGHT|MOVE\n"
-             "UP        |ROTATE\n"
-             "DOWN      |SKIP\n"
-             "SPACE     |PAUSE\n"
-             "Q,ESC     |QUIT\n", {.sdl = sdl_,
-                                   .font = font_,
-                                   .scale = 2});
+  renderText("LEFT,RIGHT | MOVE  \n"
+             "-----------|-------\n"
+             "UP         | TURN  \n"
+             "-----------|-------\n"
+             "DOWN       | SKIP  \n"
+             "-----------|-------\n"
+             "ESC        | QUIT  \n"
+             "-----------|-------\n"
+             "SPACE      | PAUSE \n"
+             "-----------|-------\n"
+             "SPACE (END)| RETRY \n", {.sdl = sdl_,
+                                       .font = font_,
+                                       .scale = 2});
   
   sdl_.present();
 
@@ -327,8 +401,6 @@ void Game::showHelp()
 
 void Game::promptDifficulty()
 {
-  difficulty_ = 0;
-
   auto stepWid = sdl_.wid() / DIFFICULTYLIMIT;
   auto stepHei = sdl_.hei() / DIFFICULTYLIMIT;
 
@@ -452,6 +524,8 @@ void Game::handleEvent(const SDL_Event &event)
 
 void Game::loop()
 {
+  clock_ = (clock_ + 1) % clockPeriod_;
+
   if(clock_ == 0)
   {
     falling_.y++;
@@ -467,8 +541,6 @@ void Game::loop()
     
     update_ = true;
   }
-
-  clock_ = (clock_ + 1) % clockPeriod_;
 }
 
 void Game::render()
@@ -559,9 +631,9 @@ void Game::renderTextInCenter(std::string_view text, int scale)
   }
 }
 
-bool Game::promptName(std::string &name)
+bool Game::promptName()
 {
-  auto wxy = sdl_.withBaseXY({8, 8});
+  auto wxy = sdl_.withBaseXY({font_.wid(), font_.hei()});
 
   auto renderPrompt = [&]
   {
@@ -576,10 +648,10 @@ bool Game::promptName(std::string &name)
 
     sdl_.setColor(Sdl::WHITE);
 
-    renderText(name, {.sdl = sdl_,
-                      .font = font_,
-                      .scale = 2,
-                      .skipRows = 1});
+    renderText(currentName_, {.sdl = sdl_,
+                              .font = font_,
+                              .scale = 2,
+                              .skipRows = 1});
 
     sdl_.present();
   };
@@ -592,35 +664,42 @@ bool Game::promptName(std::string &name)
 
   while(sdl_.wait())
   {
-    if(isQuitEvent(sdl_.event()))
+    if(isQuitEvent(sdl_.event()) || isRetryEvent(sdl_.event()))
       break;
 
     if(sdl_.event().type == SDL_TEXTINPUT)
     {
       auto input = std::string_view(sdl_.event().text.text);
 
-      if(input.size() == 1 && name.size() < NAMELIMIT)
+      if(input.size() == 1 && currentName_.size() < NAMELIMIT)
       {
         auto ch = input[0];
 
         if(isalpha(ch) || isdigit(ch))
         {
-          name += char(toupper(ch));
+          currentName_ += char(toupper(ch));
           renderPrompt();
         }
       }
     }
     else if(sdl_.event().type == SDL_KEYDOWN)
     {
-      if(sdl_.event().key.keysym.sym == SDLK_RETURN)
+      auto sym = sdl_.event().key.keysym.sym;
+
+      if(sym == SDLK_RETURN)
       {
         isEntered = true;
         break;
       }
 
-      if(sdl_.event().key.keysym.sym == SDLK_BACKSPACE && !name.empty())
+      if(sym == SDLK_SPACE)
       {
-        name.pop_back();
+        break;
+      }
+
+      if(sym == SDLK_BACKSPACE && !currentName_.empty())
+      {
+        currentName_.pop_back();
         renderPrompt();
       }
     }
@@ -634,24 +713,6 @@ bool Game::promptName(std::string &name)
 namespace
 {
   using Scoreboard = std::vector<std::pair<std::string, int>>;
-
-  std::string prepareNameForScoreboard(std::string_view name)
-  {
-    if(!name.empty())
-    {
-      std::string res;
-
-      for(auto c : name)
-        if(isalpha(c) || isdigit(c))
-          res += char(toupper(c));
-      
-      return res.substr(0, NAMELIMIT);
-    }
-    else
-    {
-      return "-";
-    }
-  }
 
   Scoreboard readScoreboardFromFile(std::istream &in)
   {
@@ -704,33 +765,30 @@ namespace
   }
 }
 
-void Game::showScoreboard(std::string_view currentName)
+void Game::showScoreboard()
 {
   auto trp = TextRenderParams{
     .sdl = sdl_,
     .font = font_,
     .scale = 2};
 
-  auto halfFontWid = font_.wid() * trp.scale / 2;
-  auto halfFontHei = font_.hei() * trp.scale / 2;
-
   auto tppNames = TextPositionParams{
-    .pos = {halfFontWid, halfFontHei},
+    .pos = {font_.wid(), font_.hei()},
     .hAlign = HAlign::Left,
     .vAlign = VAlign::Up};
 
   auto tppScores = TextPositionParams{
-    .pos = {sdl_.wid() - halfFontWid, halfFontHei},
+    .pos = {sdl_.wid() - font_.wid(), font_.hei()},
     .hAlign = HAlign::Right,
     .vAlign = VAlign::Up};
 
   auto tppYourName = TextPositionParams{
-    .pos = {halfFontWid, sdl_.hei() - halfFontHei},
+    .pos = {font_.wid(), sdl_.hei() - font_.hei()},
     .hAlign = HAlign::Left,
     .vAlign = VAlign::Down};
 
   auto tppYourScore = TextPositionParams{
-    .pos = {sdl_.wid() - halfFontWid, sdl_.hei() - halfFontHei},
+    .pos = {sdl_.wid() - font_.wid(), sdl_.hei() - font_.hei()},
     .hAlign = HAlign::Right,
     .vAlign = VAlign::Down};
 
@@ -738,7 +796,9 @@ void Game::showScoreboard(std::string_view currentName)
   
   auto out = std::ofstream("scoreboard", std::ios::trunc);
   
-  auto currentNameFixed = prepareNameForScoreboard(currentName);
+  auto currentNameFixed = !currentName_.empty()
+                        ? std::string_view(currentName_)
+                        : std::string_view("-");
 
   insertToScoreboard(scoreboard, currentNameFixed, score_);
 
@@ -748,8 +808,6 @@ void Game::showScoreboard(std::string_view currentName)
   for(int i = 0; i < scoreboard.size(); ++i)
   {
     const auto &[name, score] = scoreboard[i];
-
-    auto isSelf = name == currentNameFixed;
 
     out << name << ' ' << score << '\n';
 
@@ -768,7 +826,7 @@ void Game::showScoreboard(std::string_view currentName)
 
   sdl_.present();
   
-  do sdl_.wait(); while(!isQuitEvent(sdl_.event()));
+  while(sdl_.wait(), sdl_.event().type != SDL_QUIT && sdl_.event().type != SDL_KEYDOWN);
 }
 
 void Game::delay(int factor)
@@ -776,69 +834,15 @@ void Game::delay(int factor)
   std::this_thread::sleep_for(std::chrono::milliseconds(factor * 50));
 }
 
-void Game::execute(int difficulty, int scale, std::string currentName, bool help)
-{
-  init(scale);
-
-  if(help)
-    showHelp();
-
-  if(quit_)
-    return;
-
-  if(0 <= difficulty && difficulty < DIFFICULTYLIMIT)
-    difficulty_ = difficulty;
-  else
-    promptDifficulty();
-
-  if(quit_)
-    return;
-
-  clockPeriod_ = DIFFICULTYLIMIT - difficulty_;
-
-  if(quit_)
-    return;
-
-  while(true)
-  {
-    while(!quit_ && sdl_.poll())
-      handleEvent(sdl_.event());
-    
-    if(quit_)
-      break;
-
-    loop();
-
-    if(update_)
-    {
-      render();
-      sdl_.present();
-      update_ = false;
-    }
-    
-    delay(1);
-  }
-
-  if(sdl_.event().type == SDL_QUIT)
-    return;
-
-  if(currentName.empty())
-    if(!promptName(currentName))
-      return;
-  
-  showScoreboard(currentName);
-
-  std::cout << "SCORE: " << score_ << '\n';
-}
-
 int main(int argc, char **argv)
 {
-  Args args(argc, argv, {{"d", "difficulty"},
-                         {"s", "scale"},
-                         {"n", "name"}}, {{"h", "help"}});
+  Args args(argc, argv, {{"s", "scale"}}, {{"h", "help"}});
 
-  Game().execute(args.getIntO("difficulty").value_or(-1),
-                 args.getIntO("scale").value_or(1),
-                 args.getStrO("name").value_or(""),
-                 args.is("help"));
+  Game game;
+  game.init(args.getIntO("scale").value_or(1));
+
+  game.execute(args.is("help"));
+
+  while(!game.finalize())
+    game.execute(false);
 }
