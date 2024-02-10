@@ -2,7 +2,7 @@
 #include "font.hh"
 #include "fontutils.hh"
 #include "text.hh"
-#include "args.hh"
+#include "common/args.hh"
 #include <algorithm>
 
 int main(int argc, char **argv)

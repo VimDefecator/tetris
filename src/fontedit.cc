@@ -1,7 +1,7 @@
 #include "font.hh"
 #include "fontutils.hh"
-#include "args.hh"
 #include "sdlctx.hh"
+#include "common/args.hh"
 #include <iostream>
 #include <fstream>
 #include <filesystem>

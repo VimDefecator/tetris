@@ -1,6 +1,6 @@
 #include "font.hh"
 #include "fontutils.hh"
-#include "args.hh"
+#include "common/args.hh"
 #include <fstream>
 #include <algorithm>
 

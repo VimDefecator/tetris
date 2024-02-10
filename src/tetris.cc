@@ -13,7 +13,7 @@
 #include "font.hh"
 #include "fontutils.hh"
 #include "text.hh"
-#include "args.hh"
+#include "common/args.hh"
 
 static constexpr auto NSHAPES = 7;
 static constexpr auto NCOLORS = 6;

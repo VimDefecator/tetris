@@ -1,4 +1,6 @@
 #include "args.hh"
+#include "str2num.hh"
+
 #include <optional>
 #include <stdexcept>
 
